@@ -214,22 +214,25 @@ get_map_tile_neighbor_indices = (idx, map) ->
 
   result
 
-calculate_agent_destination = (a, map, time) ->
+calculate_new_agent_destination = (a, map, time) ->
   {:source, :destination} = a
 
-  source_tile = map[source]
-  dest_tile = map[destination]
+  new_destination = destination
 
-  if source == destination and time > calculate_start_time a
+  if time > calculate_start_time a
     if destination == 0
-      return 1
+      new_destination = 1
     else
       neighbors = get_map_tile_neighbor_indices destination, map
-      return lume.randomchoice(neighbors) or destination
-  else
-    return destination
 
-update_agent_destination = (a, map, time) ->
+      if #neighbors > 0
+        -- avoid backtracking
+        lume.remove neighbors, source if #neighbors > 1
+        new_destination = lume.randomchoice(neighbors) or destination
+
+  new_destination
+
+calculate_agent_destination = (a, map, time) ->
   {:source, :destination, :position} = a
 
   x_dest, y_dest = from_1d_to_2d_idx destination, MAP_SIZE
@@ -239,10 +242,17 @@ update_agent_destination = (a, map, time) ->
 
   DIST_THRESHOLD = 5
 
-  if dest_dist2 < DIST_THRESHOLD
-    a.source = a.destination
+  if destination == 0 or dest_dist2 < DIST_THRESHOLD
+    calculate_new_agent_destination a, map, time
+  else
+    a.destination
 
-  a.destination = calculate_agent_destination a, map, time
+update_agent_destination = (a, map, time) ->
+  new_destination = calculate_agent_destination a, map, time
+
+  if new_destination != a.destination
+    a.source = a.destination
+    a.destination = new_destination
 
 project_to_screen = (x, y) ->
   x + 40, y + 40
