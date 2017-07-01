@@ -7,6 +7,9 @@ state =
 MAP_SIZE = 10
 TILE_SIZE = 30
 
+AUDIO =
+  play_theme_loop: love.audio.newSource "music/playThemeLoop.wav"
+
 filled_array = (size, val = 0) ->
   result = {}
   for i = 1, size
@@ -75,6 +78,8 @@ draw_tile = (idx, tile) ->
 love.load = ->
   state.map = generate_map MAP_SIZE
   state.agents = generate_agents!
+
+  love.audio.play AUDIO.play_theme_loop
 
 love.draw = ->
 
