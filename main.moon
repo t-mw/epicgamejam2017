@@ -27,19 +27,29 @@ from_2d_to_1d_idx = (x, y, width) ->
 from_1d_to_2d_idx = (i, width) ->
   math.floor((i - 1) / width) + 1, ((i - 1) % width) + 1
 
+map_tile = (i) ->
+  {
+    idx: i
+    north: false
+    west: false
+    south: false
+    east: false
+  }
+
 generate_map = (size) ->
   result = {}
 
   for i = 1, size * size
-    table.insert result, {
-      idx: i
-      north: false
-      west: false
-      south: false
-      east: false
-    }
+    table.insert result, map_tile(i)
 
   result
+
+clear_map = (map) ->
+  for t in *map
+    t.north = false
+    t.west = false
+    t.south = false
+    t.east = false
 
 generate_map_route = (start_idx, length, branch_count, visited, map) ->
   idx = start_idx
@@ -120,10 +130,16 @@ generate_map_route = (start_idx, length, branch_count, visited, map) ->
     break
 
 generate_map_routes = (start_x, start_y, map) ->
-  visited = {}
   start_idx = from_2d_to_1d_idx start_x, start_y, MAP_SIZE
 
-  generate_map_route start_idx, 10, 3, visited, map
+  while true
+    clear_map map
+
+    visited = {}
+    generate_map_route start_idx, 20, 3, visited, map
+
+    if lume.count(visited) > 80
+      break
 
 generate_agents = () ->
   result = {}
