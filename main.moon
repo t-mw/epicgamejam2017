@@ -3,18 +3,11 @@ lume = require "lib.lume"
 Timer = require "lib.hump.timer"
 vector = require "lib.hump.vector"
 
-state =
-  map_start_time: 0
-  map: {}
-  agents: {}
-  hover_agent_id: nil
-  dig_agent_id: nil
-  active_job: nil
-
 MAP_SIZE = 10
 TILE_SIZE = 50
 AGENT_MATCH_RADIUS2 = 200
 AGENT_BLOCK_RADIUS2 = 200
+INFECTION_TIMER = 5
 
 AUDIO =
   play_theme_loop: love.audio.newSource "music/playThemeLoopFull.wav"
@@ -25,6 +18,15 @@ JOB =
   dig: "dig"
 
 local *
+
+state =
+  map_start_time: 0
+  map: {}
+  agents: {}
+  hover_agent_id: nil
+  dig_agent_id: nil
+  active_job: nil
+  infection_timer: INFECTION_TIMER
 
 filled_array = (size, val = 0) ->
   result = {}
@@ -39,12 +41,18 @@ from_1d_to_2d_idx = (i, width) ->
   math.floor((i - 1) / width) + 1, ((i - 1) % width) + 1
 
 map_tile = (i) ->
+  has_village = math.random! < 0.1
+  infection_rate = has_village and lume.round(math.random! * 30) or 0
+
   {
     idx: i
     north: false
     west: false
     south: false
     east: false
+    :has_village
+    infection_level: 0
+    :infection_rate
   }
 
 generate_map = (size) ->
@@ -390,6 +398,13 @@ draw_tile = (idx, tile) ->
   love.graphics.setColor 50, 100 + ((idx * 124290) % 100), 50
   love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
 
+  if tile.has_village
+    l = lume.round tile.infection_level
+    frac = tile.infection_level / 100
+
+    love.graphics.setColor 50 + l, 50, 50
+    love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
+
   love.graphics.setColor 0, 0, 0
   love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
 
@@ -428,6 +443,18 @@ love.update = (dt) ->
 
   hover_agent = find_agent_at x, y, state.agents
   state.hover_agent_id = hover_agent and hover_agent.id
+
+  state.infection_timer -= dt
+
+  if state.infection_timer < 0
+    state.infection_timer = INFECTION_TIMER
+
+    for t in *state.map
+      infection_level1 = t.infection_level
+      infection_level2 = math.min infection_level1 + t.infection_rate, 100
+
+      if infection_level2 != infection_level1
+        Timer.tween 2, t, {infection_level: infection_level2}, "bounce"
 
   Timer.update(dt)
 
@@ -470,6 +497,8 @@ love.mousereleased = (x, y, button) ->
   state.dig_agent_id = nil
 
 love.draw = ->
+  width = love.graphics.getWidth!
+  height = love.graphics.getHeight!
 
   for idx, tile in ipairs state.map
     draw_tile idx, tile
@@ -490,3 +519,9 @@ love.draw = ->
       x1, y1 = love.mouse.getPosition!
 
       love.graphics.line x, y, x1, y1
+
+  bar_width = 100
+  love.graphics.setColor 50, 50, 50
+  love.graphics.rectangle "fill", 100, height - 40, INFECTION_TIMER * bar_width, 20
+  love.graphics.setColor 255, 0, 0
+  love.graphics.rectangle "fill", 100, height - 40, (INFECTION_TIMER - state.infection_timer) * bar_width, 20
