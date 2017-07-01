@@ -9,6 +9,7 @@ AGENT_MATCH_RADIUS2 = 200
 AGENT_BLOCK_RADIUS2 = 200
 INFECTION_TIMER_START = 20
 INFECTION_TIMER_DECAY = 0.8
+INFECTION_TIMER_MIN = 5
 BLOCKING_TIME = 3
 
 AUDIO =
@@ -554,7 +555,9 @@ love.update = (dt) ->
   if state.infection_timer < 0
     AUDIO.infection_complete\play!
 
-    state.infection_timer_max *= INFECTION_TIMER_DECAY
+    state.infection_timer_max = math.max state.infection_timer_max *
+      INFECTION_TIMER_DECAY, INFECTION_TIMER_MIN
+
     state.infection_timer = state.infection_timer_max
 
     for t in *state.map
