@@ -7,9 +7,12 @@ MAP_SIZE = 10
 TILE_SIZE = 48
 AGENT_MATCH_RADIUS2 = 200
 AGENT_BLOCK_RADIUS2 = 200
-INFECTION_TIMER = 10
+INFECTION_TIMER_START = 20
+INFECTION_TIMER_DECAY = 0.8
+BLOCKING_TIME = 3
 
 AUDIO =
+  infection_complete: love.audio.newSource "music/InfectionComplete.wav", "static"
   heal: love.audio.newSource "music/Heal.wav", "static"
   play_theme_loop: love.audio.newSource "music/playThemeLoopFull.wav"
 
@@ -28,7 +31,8 @@ state =
   hover_agent_id: nil
   dig_agent_id: nil
   active_job: nil
-  infection_timer: INFECTION_TIMER
+  infection_timer: INFECTION_TIMER_START
+  infection_timer_max: INFECTION_TIMER_START
 
 filled_array = (size, val = 0) ->
   result = {}
@@ -41,6 +45,9 @@ from_2d_to_1d_idx = (x, y, width) ->
 
 from_1d_to_2d_idx = (i, width) ->
   math.floor((i - 1) / width) + 1, ((i - 1) % width) + 1
+
+is_infection_critical = (level) ->
+  level == 100
 
 map_tile = (i) ->
   has_village = math.random! < 0.1
@@ -175,15 +182,20 @@ generate_agents = () ->
   for i = 1, 10
     table.insert result, {
       id: i
+      active: true
       start_order: i
       source: 0
       destination: 0
       position: vector(0, 0),
       job: nil
+      blocking_time: BLOCKING_TIME
       blocked: false
     }
 
   result
+
+active_agents = (agents) ->
+  lume.filter agents, (a) -> a.active
 
 tile_pos_to_world_pos = (x, y) ->
   vector(x, y) * TILE_SIZE
@@ -325,7 +337,11 @@ update_agent_destination = (a, map, blockers, time) ->
 
     return
 
-  if new_destination != a.destination
+  new_destination_tile = map[new_destination]
+  is_critical = new_destination_tile and
+    is_infection_critical new_destination_tile.infection_level
+
+  if new_destination != a.destination and not is_critical
     a.source = a.destination
     a.destination = new_destination
 
@@ -499,13 +515,22 @@ love.load = ->
   with AUDIO.play_theme_loop
     \setLooping true
     \play!
+    \setVolume 0
+    Timer.script (wait) ->
+      t = 0
+      wait 1
+      Timer.during 2, (dt) ->
+        t += dt
+        volume = t / 2
+        \setVolume volume * volume
 
 love.update = (dt) ->
   time = love.timer.getTime! - state.map_start_time
 
-  blockers = lume.filter state.agents, (a) -> a.job == JOB.block
+  agents = active_agents state.agents
+  blockers = lume.filter agents, (a) -> a.job == JOB.block
 
-  for a in *state.agents
+  for a in *agents
     pre_move = a.position
 
     update_agent_position a, dt
@@ -513,16 +538,24 @@ love.update = (dt) ->
 
     apply_healing a, pre_move, state.map
 
+  for a in *blockers
+    a.blocking_time -= dt
+    if a.blocking_time < 0
+      a.active = false
+
   x, y =  love.mouse.getPosition!
   x, y = project_to_world x, y
 
-  hover_agent = find_agent_at x, y, state.agents
+  hover_agent = find_agent_at x, y, agents
   state.hover_agent_id = hover_agent and hover_agent.id
 
   state.infection_timer -= dt
 
   if state.infection_timer < 0
-    state.infection_timer = INFECTION_TIMER
+    AUDIO.infection_complete\play!
+
+    state.infection_timer_max *= INFECTION_TIMER_DECAY
+    state.infection_timer = state.infection_timer_max
 
     for t in *state.map
       if t.infection_level > 0
@@ -535,7 +568,9 @@ love.update = (dt) ->
   Timer.update(dt)
 
 love.keypressed = (key) ->
-  hover_agent = find_agent state.select_agent_id, state.agents
+  agents = active_agents state.agents
+
+  hover_agent = find_agent state.select_agent_id, agents
 
   switch key
     when "1"
@@ -546,6 +581,8 @@ love.keypressed = (key) ->
       state.active_job = "rotate"
 
 love.mousepressed = (x, y, button) ->
+  agents = active_agents state.agents
+
   if button != 1
     return
 
@@ -553,7 +590,7 @@ love.mousepressed = (x, y, button) ->
   active_job = state.active_job
 
   if active_job
-    select_agent = find_agent_at x, y, state.agents
+    select_agent = find_agent_at x, y, agents
 
     if active_job == "dig"
       state.dig_agent_id = select_agent.id
@@ -570,9 +607,13 @@ love.mousereleased = (x, y, button) ->
     x, y = project_to_world x, y
     apply_dig_agent dig_agent, x, y, map
 
+    dig_agent.active = false
+
   state.dig_agent_id = nil
 
 love.draw = ->
+  agents = active_agents state.agents
+
   scale = love.window.getPixelScale!
   love.graphics.scale scale
 
@@ -582,7 +623,7 @@ love.draw = ->
   for idx, tile in ipairs state.map
     draw_tile idx, tile
 
-  for a in *state.agents
+  for a in *agents
     {:x, :y} = a.position
     x, y = project_to_screen x, y
 
@@ -607,4 +648,4 @@ love.draw = ->
   love.graphics.setColor 50, 50, 50
   love.graphics.rectangle "fill", 0, 0, bar_width, 20
   love.graphics.setColor 255, 0, 0
-  love.graphics.rectangle "fill", 0, 0, bar_width * (INFECTION_TIMER - state.infection_timer) / INFECTION_TIMER, 20
+  love.graphics.rectangle "fill", 0, 0, bar_width * (state.infection_timer_max - state.infection_timer) / state.infection_timer_max, 20
