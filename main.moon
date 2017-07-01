@@ -39,6 +39,9 @@ state =
   infection_timer: INFECTION_TIMER_START
   infection_timer_max: INFECTION_TIMER_START
 
+gfx =
+  glows: {}
+
 filled_array = (size, val = 0) ->
   result = {}
   for i = 1, size
@@ -50,6 +53,9 @@ from_2d_to_1d_idx = (x, y, width) ->
 
 from_1d_to_2d_idx = (i, width) ->
   math.floor((i - 1) / width) + 1, ((i - 1) % width) + 1
+
+get_time = ->
+  love.timer.getTime! - state.map_start_time
 
 is_infection_critical = (level) ->
   level == 100
@@ -416,6 +422,8 @@ apply_healing = (a, pre_move, map) ->
 
     if infection_level > 0
       AUDIO.heal\play!
+      table.insert gfx.glows, tile_idx: post_tile.idx, since: get_time!
+
       post_tile.infection_level = math.max infection_level - 10, 0
 
 find_agent_at = (world_x, world_y, agents) ->
@@ -529,7 +537,7 @@ draw_tile = (idx, tile) ->
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
 
   draw_tile_path(tile, x0, y0, x1, y1, x2, y2)
-  
+
 love.load = ->
   love.window.setMode 800, 600, highdpi: true
 
@@ -542,10 +550,10 @@ love.load = ->
   generate_map_routes 1, 1, state.map
 
   -- load tile images
-  
+
   --  grass
   state.tiles.grass = love.graphics.newImage("graphics/grass.png")
-  
+
   --  village houses
   h = love.graphics.newImage("graphics/houses.png")
   h\setFilter("nearest", "nearest")
@@ -570,10 +578,7 @@ love.load = ->
   state.gfx.doctorback = love.graphics.newImage("graphics/doctorback.png")
   state.gfx.doctorfront = love.graphics.newImage("graphics/doctorfront.png")
 
-  --pixelated: nearest filter
-  --Canvas\setFilter(nearest, nearest)
-  --f,g = Canvas\getFilter()
-  
+  state.gfx.glow = love.graphics.newImage("graphics/glow.png")
 
   with AUDIO.play_theme_loop
     \setLooping true
@@ -588,7 +593,7 @@ love.load = ->
         \setVolume volume * volume
 
 love.update = (dt) ->
-  time = love.timer.getTime! - state.map_start_time
+  time = get_time!
 
   agents = filter_active_agents state.agents
   blockers = lume.filter agents, (a) -> a.job == JOB.block
@@ -672,13 +677,12 @@ love.mousereleased = (x, y, button) ->
     x, y = project_to_world x, y
     apply_dig_agent dig_agent, x, y, map
 
-    time = love.timer.getTime! - state.map_start_time
-    deactivate_agent dig_agent, time
+    deactivate_agent dig_agent, get_time!
 
   state.dig_agent_id = nil
 
 love.draw = ->
-  time = love.timer.getTime! - state.map_start_time
+  time = get_time!
 
   agents = filter_active_agents state.agents
 
@@ -730,6 +734,24 @@ love.draw = ->
 
       love.graphics.setColor 50, 50, 50, (1 - e) * 255
       love.graphics.circle "fill", x, y - e * 30, 7
+
+  for g in *gfx.glows
+    duration = time - g.since
+
+    DURATION = 2
+
+    if duration < DURATION
+      tile_idx = g.tile_idx
+
+      x, y = from_1d_to_2d_idx tile_idx, MAP_SIZE
+      x, y = TILE_SIZE * x, TILE_SIZE * y
+      x, y = project_to_screen x, y
+
+      e = 1 - duration / DURATION
+      e = 1 - e * e * e * e * e
+
+      love.graphics.setColor 255, 255, 255, (1 - e) * 255
+      love.graphics.draw(state.gfx.glow, x, y, e, TILE_SCALE, TILE_SCALE, 0.5 * TILE_SIZE / TILE_SCALE, 0.5 * TILE_SIZE / TILE_SCALE)
 
   bar_width = 500
   love.graphics.translate 0.5 * (width - bar_width), height - 40
