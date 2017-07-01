@@ -496,11 +496,33 @@ draw_tile_path = (tile, x, y, x0, y0) ->
   x1, y1 = project_to_screen x1, y1
   x2, y2 = project_to_screen x2, y2
 
-  love.graphics.setColor 200, 200, 0
-  love.graphics.line x1, y1, x1, y0 if tile.north
-  love.graphics.line x1, y1, x0, y1 if tile.west
-  love.graphics.line x1, y1, x1, y2 if tile.south
-  love.graphics.line x1, y1, x2, y1 if tile.east
+  path_idx = -1
+  sum = 0
+  sum += 1 if tile.north
+  sum += 1 if tile.west
+  sum += 1 if tile.south
+  sum += 1 if tile.east
+
+  if sum == 4
+    path_idx = 0
+  elseif sum == 3
+    path_idx = 3
+  elseif sum == 2
+    path_idx = 2
+  else if sum == 1
+    path_idx = 1 
+
+  --  ii = math.floor(math.random! * 4)
+  
+  --love.graphics.setColor 200, 200, 0
+  --love.graphics.line x1, y1, x1, y0 if tile.north
+  --love.graphics.line x1, y1, x0, y1 if tile.west
+  --love.graphics.line x1, y1, x1, y2 if tile.south
+  --love.graphics.line x1, y1, x2, y1 if tile.east
+
+  -- draw path depending on index
+  if path_idx ~= -1
+    love.graphics.draw(state.gfx.paths_image, state.gfx.paths_qs[path_idx], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
 draw_tile = (idx, tile) ->
   x, y = from_1d_to_2d_idx idx, MAP_SIZE
@@ -518,8 +540,6 @@ draw_tile = (idx, tile) ->
 
   img_scale = TILE_SIZE / IMAGE_SIZE
   love.graphics.draw(state.gfx.grass, x0, y0, 0, TILE_SCALE, TILE_SCALE)
---  ii = math.floor(math.random! * 4)
-  --love.graphics.draw(state.gfx.paths_image, state.gfx.paths_qs[ii], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
   if tile.has_village
     l = lume.round tile.infection_level
