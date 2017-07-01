@@ -4,7 +4,7 @@ Timer = require "lib.hump.timer"
 vector = require "lib.hump.vector"
 
 MAP_SIZE = 10
-TILE_SIZE = 50
+TILE_SIZE = 48
 AGENT_MATCH_RADIUS2 = 200
 AGENT_BLOCK_RADIUS2 = 200
 INFECTION_TIMER = 10
@@ -445,6 +445,8 @@ draw_tile = (idx, tile) ->
   love.graphics.line x1, y1, x2, y1 if tile.east
 
 love.load = ->
+  love.window.setMode 800, 600, highdpi: true
+
   math.randomseed os.time!
 
   state.map_start_time = love.timer.getTime!
@@ -530,8 +532,11 @@ love.mousereleased = (x, y, button) ->
   state.dig_agent_id = nil
 
 love.draw = ->
-  width = love.graphics.getWidth!
-  height = love.graphics.getHeight!
+  scale = love.window.getPixelScale!
+  love.graphics.scale scale
+
+  width = love.graphics.getWidth! / scale
+  height = love.graphics.getHeight! / scale
 
   for idx, tile in ipairs state.map
     draw_tile idx, tile
