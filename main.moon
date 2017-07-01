@@ -65,7 +65,9 @@ map_tile = (i) ->
   --village/houses
   has_village = math.random! < 0.1
   --  type of village
-  village_idx = math.floor(math.random! * NUM_VILLAGE_TYPES)
+  village_idx = -1
+  if has_village
+    village_idx = math.floor(math.random! * NUM_VILLAGE_TYPES)
 
   x, y = from_1d_to_2d_idx i, MAP_SIZE
   max_rate = math.max MAP_SIZE - x, MAP_SIZE - y
@@ -79,9 +81,9 @@ map_tile = (i) ->
     south: false
     east: false
     :has_village
+    :village_idx
     infection_level: infection_rate
     :infection_rate
-    :village_idx
   }
 
 generate_map = (size) ->
