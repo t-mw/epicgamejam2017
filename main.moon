@@ -7,9 +7,10 @@ MAP_SIZE = 10
 TILE_SIZE = 50
 AGENT_MATCH_RADIUS2 = 200
 AGENT_BLOCK_RADIUS2 = 200
-INFECTION_TIMER = 5
+INFECTION_TIMER = 10
 
 AUDIO =
+  heal: love.audio.newSource "music/heal.wav", "static"
   play_theme_loop: love.audio.newSource "music/playThemeLoopFull.wav"
 
 JOB =
@@ -42,7 +43,11 @@ from_1d_to_2d_idx = (i, width) ->
 
 map_tile = (i) ->
   has_village = math.random! < 0.1
-  infection_rate = has_village and lume.round(math.random! * 30) or 0
+
+  x, y = from_1d_to_2d_idx i, MAP_SIZE
+  max_rate = math.max MAP_SIZE - x, MAP_SIZE - y
+
+  infection_rate = has_village and lume.round(math.random! * max_rate) or 0
 
   {
     idx: i
@@ -51,7 +56,7 @@ map_tile = (i) ->
     south: false
     east: false
     :has_village
-    infection_level: 0
+    infection_level: infection_rate
     :infection_rate
   }
 
@@ -362,6 +367,27 @@ apply_dig_agent = (agent, target_x, target_y, map) ->
       source_tile.south = true
       target_tile.north = true
 
+apply_healing = (a, pre_move, map) ->
+
+  pre_tile = (() ->
+    x, y = world_pos_to_tile_pos pre_move
+    idx = from_2d_to_1d_idx x, y, MAP_SIZE
+    map[idx]
+  )()
+
+  post_tile = (() ->
+    x, y = world_pos_to_tile_pos a.position
+    idx = from_2d_to_1d_idx x, y, MAP_SIZE
+    map[idx]
+  )()
+
+  if post_tile and (not pre_tile or pre_tile.idx != post_tile.idx)
+    infection_level = post_tile.infection_level
+
+    if infection_level > 0
+      AUDIO.heal\play!
+      post_tile.infection_level = math.max infection_level - 10, 0
+
 find_agent_at = (world_x, world_y, agents) ->
   w = vector world_x, world_y
   for a in *agents
@@ -402,6 +428,9 @@ draw_tile = (idx, tile) ->
     l = lume.round tile.infection_level
     frac = tile.infection_level / 100
 
+    love.graphics.setColor 100, 100, 100
+    love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
+
     love.graphics.setColor 50 + l, 50, 50
     love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
 
@@ -434,9 +463,12 @@ love.update = (dt) ->
   blockers = lume.filter state.agents, (a) -> a.job == JOB.block
 
   for a in *state.agents
+    pre_move = a.position
 
     update_agent_position a, dt
     update_agent_destination a, state.map, blockers, time
+
+    apply_healing a, pre_move, state.map
 
   x, y =  love.mouse.getPosition!
   x, y = project_to_world x, y
@@ -450,11 +482,12 @@ love.update = (dt) ->
     state.infection_timer = INFECTION_TIMER
 
     for t in *state.map
-      infection_level1 = t.infection_level
-      infection_level2 = math.min infection_level1 + t.infection_rate, 100
+      if t.infection_level > 0
+        infection_level1 = t.infection_level
+        infection_level2 = math.min infection_level1 + t.infection_rate, 100
 
-      if infection_level2 != infection_level1
-        Timer.tween 2, t, {infection_level: infection_level2}, "bounce"
+        if infection_level2 != infection_level1
+          Timer.tween 2, t, {infection_level: infection_level2}, "expo"
 
   Timer.update(dt)
 
@@ -520,8 +553,8 @@ love.draw = ->
 
       love.graphics.line x, y, x1, y1
 
-  bar_width = 100
+  bar_width = 500
   love.graphics.setColor 50, 50, 50
-  love.graphics.rectangle "fill", 100, height - 40, INFECTION_TIMER * bar_width, 20
+  love.graphics.rectangle "fill", 100, height - 40, bar_width, 20
   love.graphics.setColor 255, 0, 0
-  love.graphics.rectangle "fill", 100, height - 40, (INFECTION_TIMER - state.infection_timer) * bar_width, 20
+  love.graphics.rectangle "fill", 100, height - 40, bar_width * (INFECTION_TIMER - state.infection_timer) / INFECTION_TIMER, 20
