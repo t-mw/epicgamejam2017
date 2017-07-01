@@ -7,7 +7,8 @@ MAP_SIZE = 10
 TILE_SIZE = 48
 AGENT_MATCH_RADIUS2 = 200
 AGENT_BLOCK_RADIUS2 = 200
-INFECTION_TIMER = 10
+INFECTION_TIMER_START = 20
+INFECTION_TIMER_DECAY = 0.8
 
 AUDIO =
   heal: love.audio.newSource "music/heal.wav", "static"
@@ -27,7 +28,8 @@ state =
   hover_agent_id: nil
   dig_agent_id: nil
   active_job: nil
-  infection_timer: INFECTION_TIMER
+  infection_timer: INFECTION_TIMER_START
+  infection_timer_max: INFECTION_TIMER_START
 
 filled_array = (size, val = 0) ->
   result = {}
@@ -510,7 +512,8 @@ love.update = (dt) ->
   state.infection_timer -= dt
 
   if state.infection_timer < 0
-    state.infection_timer = INFECTION_TIMER
+    state.infection_timer_max *= INFECTION_TIMER_DECAY
+    state.infection_timer = state.infection_timer_max
 
     for t in *state.map
       if t.infection_level > 0
@@ -595,4 +598,4 @@ love.draw = ->
   love.graphics.setColor 50, 50, 50
   love.graphics.rectangle "fill", 0, 0, bar_width, 20
   love.graphics.setColor 255, 0, 0
-  love.graphics.rectangle "fill", 0, 0, bar_width * (INFECTION_TIMER - state.infection_timer) / INFECTION_TIMER, 20
+  love.graphics.rectangle "fill", 0, 0, bar_width * (state.infection_timer_max - state.infection_timer) / state.infection_timer_max, 20
