@@ -486,7 +486,16 @@ draw_agent = (a, x, y) ->
 
   love.graphics.draw sprite, x, y, 0, scale_x * TILE_SCALE, TILE_SCALE
 
-draw_tile_path = (tile, x0, y0, x1, y1, x2, y2) ->
+draw_tile_path = (tile, x, y, x0, y0) ->
+  x1 = TILE_SIZE * x
+  y1 = TILE_SIZE * y
+
+  x2 = TILE_SIZE * (x + 0.5)
+  y2 = TILE_SIZE * (y + 0.5)
+
+  x1, y1 = project_to_screen x1, y1
+  x2, y2 = project_to_screen x2, y2
+
   love.graphics.setColor 200, 200, 0
   love.graphics.line x1, y1, x1, y0 if tile.north
   love.graphics.line x1, y1, x0, y1 if tile.west
@@ -499,15 +508,8 @@ draw_tile = (idx, tile) ->
   x0 = TILE_SIZE * (x - 0.5)
   y0 = TILE_SIZE * (y - 0.5)
 
-  x1 = TILE_SIZE * x
-  y1 = TILE_SIZE * y
-
-  x2 = TILE_SIZE * (x + 0.5)
-  y2 = TILE_SIZE * (y + 0.5)
-
   x0, y0 = project_to_screen x0, y0
-  x1, y1 = project_to_screen x1, y1
-  x2, y2 = project_to_screen x2, y2
+
 
   love.graphics.setColor 50, 100 + ((idx * 124290) % 100), 50
   love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
@@ -515,9 +517,9 @@ draw_tile = (idx, tile) ->
   --draw grass graphics
 
   img_scale = TILE_SIZE / IMAGE_SIZE
-  love.graphics.draw(state.tiles.grass, x0, y0, 0, TILE_SCALE, TILE_SCALE)
+  love.graphics.draw(state.gfx.grass, x0, y0, 0, TILE_SCALE, TILE_SCALE)
 --  ii = math.floor(math.random! * 4)
-  --love.graphics.draw(state.tiles.paths_image, state.tiles.paths_qs[ii], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
+  --love.graphics.draw(state.gfx.paths_image, state.gfx.paths_qs[ii], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
   if tile.has_village
     l = lume.round tile.infection_level
@@ -530,13 +532,13 @@ draw_tile = (idx, tile) ->
     love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
 
     --draw village (one of the houses) graphics
-    love.graphics.draw(state.tiles.houses_image, state.tiles.houses_qs[2], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
+    love.graphics.draw(state.gfx.houses_image, state.gfx.houses_qs[2], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
   --love.graphics.setColor 0, 0, 0
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
 
-  draw_tile_path(tile, x0, y0, x1, y1, x2, y2)
-
+  draw_tile_path(tile, x, y, x0, y0)
+  
 love.load = ->
   love.window.setMode 800, 600, highdpi: true
 
@@ -550,8 +552,8 @@ love.load = ->
   -- load tile images
 
   --  grass
-  state.tiles.grass = love.graphics.newImage("graphics/grass.png")
-
+  state.gfx.grass = love.graphics.newImage("graphics/grass.png")
+  
   --  village houses
   h = love.graphics.newImage("graphics/houses.png")
   h\setFilter("nearest", "nearest")
@@ -559,22 +561,25 @@ love.load = ->
   qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions())
   qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
   qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
-  state.tiles.houses_qs = qs
-  state.tiles.houses_image = h
+  state.gfx.houses_qs = qs
+  state.gfx.houses_image = h
 
   --  paths
-  state.tiles.paths_image = love.graphics.newImage("graphics/path2.png")
+  state.gfx.paths_image = love.graphics.newImage("graphics/path2.png")
   qs = {}
   qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions())
   qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
   qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
   qs[3] = love.graphics.newQuad(32*3, 0, 32, 32, h\getDimensions())
-  state.tiles.paths_qs = qs
+  state.gfx.paths_qs = qs
 
   --  doctors
   state.gfx.doctorleft = love.graphics.newImage("graphics/doctorleft.png")
+  state.gfx.doctorleft\setFilter("nearest", "nearest")
   state.gfx.doctorback = love.graphics.newImage("graphics/doctorback.png")
+  state.gfx.doctorback\setFilter("nearest", "nearest")
   state.gfx.doctorfront = love.graphics.newImage("graphics/doctorfront.png")
+  state.gfx.doctorfront\setFilter("nearest", "nearest")
 
   state.gfx.glow = love.graphics.newImage("graphics/glow.png")
 
