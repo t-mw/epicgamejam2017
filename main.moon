@@ -8,6 +8,7 @@ state =
   map: {}
   agents: {}
   hover_agent_id: nil
+  dig_agent_id: nil
   active_job: nil
 
 MAP_SIZE = 10
@@ -170,8 +171,12 @@ generate_agents = () ->
 
   result
 
-tile_pos_to_world = (x, y) ->
+tile_pos_to_world_pos = (x, y) ->
   vector(x, y) * TILE_SIZE
+
+world_pos_to_tile_pos = (v) ->
+  v = v / TILE_SIZE
+  lume.round(v.x), lume.round(v.y)
 
 calculate_start_time = (a) ->
   a.start_order * 2
@@ -187,8 +192,7 @@ update_agent_position = (a, dt) ->
   x_source, y_source = from_1d_to_2d_idx source, MAP_SIZE
   x_dest, y_dest = from_1d_to_2d_idx destination, MAP_SIZE
 
-  source_pos = tile_pos_to_world x_source, y_source
-  dest_pos = tile_pos_to_world x_dest, y_dest
+  dest_pos = tile_pos_to_world_pos x_dest, y_dest
 
   if source == destination
     a.position = vector(x, y)
@@ -280,7 +284,7 @@ calculate_agent_destination = (a, map, time) ->
   {:source, :destination, :position} = a
 
   x_dest, y_dest = from_1d_to_2d_idx destination, MAP_SIZE
-  dest_pos = tile_pos_to_world x_dest, y_dest
+  dest_pos = tile_pos_to_world_pos x_dest, y_dest
 
   dest_dist2 = (dest_pos - position)\len2!
 
@@ -310,6 +314,45 @@ update_agent_destination = (a, map, blockers, time) ->
   if new_destination != a.destination
     a.source = a.destination
     a.destination = new_destination
+
+apply_dig_agent = (agent, target_x, target_y, map) ->
+
+  source_tile = (() ->
+    x, y = world_pos_to_tile_pos agent.position
+    idx = from_2d_to_1d_idx x, y, MAP_SIZE
+    map[idx]
+  )()
+
+  target_tile = (() ->
+    x, y = world_pos_to_tile_pos vector(target_x, target_y)
+    idx = from_2d_to_1d_idx x, y, MAP_SIZE
+    map[idx]
+  )()
+
+  if source_tile and target_tile
+    source_idx = source_tile.idx
+    target_idx = target_tile.idx
+
+    idx_e = get_map_tile_neighbor_dir "east", source_idx, map
+    idx_w = get_map_tile_neighbor_dir "west", source_idx, map
+    idx_n = get_map_tile_neighbor_dir "north", source_idx, map
+    idx_s = get_map_tile_neighbor_dir "south", source_idx, map
+
+    if target_idx == idx_e
+      source_tile.east = true
+      target_tile.west = true
+
+    if target_idx == idx_w
+      source_tile.west = true
+      target_tile.east = true
+
+    if target_idx == idx_n
+      source_tile.north = true
+      target_tile.south = true
+
+    if target_idx == idx_s
+      source_tile.south = true
+      target_tile.north = true
 
 find_agent_at = (world_x, world_y, agents) ->
   w = vector world_x, world_y
@@ -395,18 +438,36 @@ love.keypressed = (key) ->
     when "1"
       state.active_job = "block"
     when "2"
-      state.active_job = "rotate"
-    when "3"
       state.active_job = "dig"
+    when "3"
+      state.active_job = "rotate"
 
 love.mousepressed = (x, y, button) ->
   if button != 1
     return
 
   x, y = project_to_world x, y
+  active_job = state.active_job
 
-  select_agent = find_agent_at x, y, state.agents
-  select_agent.job = state.active_job if not select_agent.job and state.active_job
+  if active_job
+    select_agent = find_agent_at x, y, state.agents
+
+    if active_job == "dig"
+      state.dig_agent_id = select_agent.id
+    else
+      select_agent.job = active_job if not select_agent.job
+
+love.mousereleased = (x, y, button) ->
+  if button != 1
+    return
+
+  {:agents, :map} = state
+
+  if dig_agent = find_agent state.dig_agent_id, agents
+    x, y = project_to_world x, y
+    apply_dig_agent dig_agent, x, y, map
+
+  state.dig_agent_id = nil
 
 love.draw = ->
 
@@ -424,3 +485,8 @@ love.draw = ->
 
     love.graphics.setColor color
     love.graphics.circle "fill", x, y, 7
+
+    if a.id == state.dig_agent_id
+      x1, y1 = love.mouse.getPosition!
+
+      love.graphics.line x, y, x1, y1
