@@ -179,9 +179,9 @@ draw_tile = (idx, tile) ->
 
   love.graphics.setColor 200, 200, 0
 
-  love.graphics.line x1, y1, x1, y2 if tile.north
+  love.graphics.line x1, y1, x1, y0 if tile.north
   love.graphics.line x1, y1, x0, y1 if tile.west
-  love.graphics.line x1, y1, x1, y0 if tile.south
+  love.graphics.line x1, y1, x1, y2 if tile.south
   love.graphics.line x1, y1, x2, y1 if tile.east
 
 love.load = ->
