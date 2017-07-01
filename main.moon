@@ -295,7 +295,9 @@ love.load = ->
 
   generate_map_routes 1, 1, state.map
 
-  love.audio.play AUDIO.play_theme_loop
+  with AUDIO.play_theme_loop
+    \setLooping true
+    \play!
 
 love.update = (dt) ->
   time = love.timer.getTime! - state.map_start_time
