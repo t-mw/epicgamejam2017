@@ -138,7 +138,10 @@ generate_map_routes = (start_x, start_y, map) ->
     visited = {}
     generate_map_route start_idx, 20, 3, visited, map
 
-    if lume.count(visited) > 80
+    -- avoid lume.count treating visited as array
+    visited[1] = nil
+
+    if lume.count(visited) + 1 > 70
       break
 
 generate_agents = () ->
