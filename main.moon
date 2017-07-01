@@ -397,10 +397,28 @@ find_agent_at = (world_x, world_y, agents) ->
   nil
 
 project_to_screen = (x, y) ->
-  x + 40, y + 40
+  scale = love.window.getPixelScale!
+
+  width = love.graphics.getWidth! / scale
+  height = love.graphics.getHeight! / scale
+
+  size = (1 + MAP_SIZE) * TILE_SIZE
+  x += (width - size) / 2
+  y += (height - size) / 2
+
+  x, y
 
 project_to_world = (x, y) ->
-  x - 40, y - 40
+  scale = love.window.getPixelScale!
+
+  width = love.graphics.getWidth! / scale
+  height = love.graphics.getHeight! / scale
+
+  size = (1 + MAP_SIZE) * TILE_SIZE
+  x -= (width - size) / 2
+  y -= (height - size) / 2
+
+  x, y
 
 find_agent = (id, agents) ->
   lume.match agents, (a) -> a.id == id
