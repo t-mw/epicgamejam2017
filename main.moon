@@ -179,12 +179,12 @@ generate_map_routes = (start_x, start_y, map) ->
     clear_map map
 
     visited = {}
-    generate_map_route start_idx, 20, 3, visited, map
+    generate_map_route start_idx, 20, 2, visited, map
 
     -- avoid lume.count treating visited as array
     visited[1] = nil
 
-    if lume.count(visited) + 1 > 70
+    if lume.count(visited) + 1 > 40
       break
 
 generate_agents = () ->
