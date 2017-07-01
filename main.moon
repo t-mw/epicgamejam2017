@@ -477,7 +477,6 @@ draw_agent = (a, x, y) ->
   x = lume.round x - TILE_SIZE / 2 + dx
   y = lume.round y - TILE_SIZE / 2
 
-  love.graphics.setColor 255, 255, 255
   love.graphics.draw sprite, x, y, 0, scale_x * TILE_SCALE, TILE_SCALE
 
 draw_tile_path = (tile, x0, y0, x1, y1, x2, y2) ->
@@ -700,10 +699,11 @@ love.draw = ->
     x, y = project_to_screen x, y
 
     color = if state.hover_agent_id == a.id
-      {255, 0, 0}
+      {255, 200, 200}
     else
-      {255, 255, 0}
+      {255, 255, 255}
 
+    love.graphics.setColor color
     draw_agent a, x, y
 
     if a.id == state.dig_agent_id
