@@ -5,6 +5,7 @@ vector = require "lib.hump.vector"
 
 MAP_SIZE = 10
 TILE_SIZE = 48
+IMAGE_SIZE = 32
 AGENT_MATCH_RADIUS2 = 200
 AGENT_BLOCK_RADIUS2 = 200
 INFECTION_TIMER_START = 20
@@ -455,6 +456,7 @@ project_to_world = (x, y) ->
 find_agent = (id, agents) ->
   lume.match agents, (a) -> a.id == id
 
+
 draw_agent = (a, x, y) ->
   {:source, :destination} = a
 
@@ -478,6 +480,13 @@ draw_agent = (a, x, y) ->
   love.graphics.setColor 255, 255, 255
   love.graphics.draw sprite, x, y, 0, scale_x * TILE_SCALE, TILE_SCALE
 
+draw_tile_path = (tile, x0, y0, x1, y1, x2, y2) ->
+  love.graphics.setColor 200, 200, 0
+  love.graphics.line x1, y1, x1, y0 if tile.north
+  love.graphics.line x1, y1, x0, y1 if tile.west
+  love.graphics.line x1, y1, x1, y2 if tile.south
+  love.graphics.line x1, y1, x2, y1 if tile.east
+
 draw_tile = (idx, tile) ->
   x, y = from_1d_to_2d_idx idx, MAP_SIZE
 
@@ -498,7 +507,11 @@ draw_tile = (idx, tile) ->
   love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
 
   --draw grass graphics
+
+  img_scale = TILE_SIZE / IMAGE_SIZE
   love.graphics.draw(state.tiles.grass, x0, y0, 0, TILE_SCALE, TILE_SCALE)
+--  ii = math.floor(math.random! * 4)
+  --love.graphics.draw(state.tiles.paths_image, state.tiles.paths_qs[ii], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
   if tile.has_village
     l = lume.round tile.infection_level
@@ -511,18 +524,13 @@ draw_tile = (idx, tile) ->
     love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
 
     --draw village (one of the houses) graphics
-    love.graphics.draw(state.tiles.houses, state.tiles.houses_q1, x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
+    love.graphics.draw(state.tiles.houses_image, state.tiles.houses_qs[2], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
   --love.graphics.setColor 0, 0, 0
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
 
-  love.graphics.setColor 200, 200, 0
-
-  love.graphics.line x1, y1, x1, y0 if tile.north
-  love.graphics.line x1, y1, x0, y1 if tile.west
-  love.graphics.line x1, y1, x1, y2 if tile.south
-  love.graphics.line x1, y1, x2, y1 if tile.east
-
+  draw_tile_path(tile, x0, y0, x1, y1, x2, y2)
+  
 love.load = ->
   love.window.setMode 800, 600, highdpi: true
 
@@ -535,18 +543,38 @@ love.load = ->
   generate_map_routes 1, 1, state.map
 
   -- load tile images
+  
   --  grass
   state.tiles.grass = love.graphics.newImage("graphics/grass.png")
+  
   --  village houses
   h = love.graphics.newImage("graphics/houses.png")
-  state.tiles.houses = h
-  state.tiles.houses_q1 = love.graphics.newQuad(0, 0, 32, 32, h\getDimensions())
-  --  paths
-  state.tiles.paths = love.graphics.newImage("graphics/path2.png")
+  h\setFilter("nearest", "nearest")
+  qs = {}
+  qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions())
+  qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
+  qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
+  state.tiles.houses_qs = qs
+  state.tiles.houses_image = h
 
+  --  paths
+  state.tiles.paths_image = love.graphics.newImage("graphics/path2.png")
+  qs = {}
+  qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions())
+  qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
+  qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
+  qs[3] = love.graphics.newQuad(32*3, 0, 32, 32, h\getDimensions())
+  state.tiles.paths_qs = qs
+
+  --  doctors
   state.gfx.doctorleft = love.graphics.newImage("graphics/doctorleft.png")
   state.gfx.doctorback = love.graphics.newImage("graphics/doctorback.png")
   state.gfx.doctorfront = love.graphics.newImage("graphics/doctorfront.png")
+
+  --pixelated: nearest filter
+  --Canvas\setFilter(nearest, nearest)
+  --f,g = Canvas\getFilter()
+  
 
   with AUDIO.play_theme_loop
     \setLooping true
