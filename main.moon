@@ -9,6 +9,7 @@ AGENT_MATCH_RADIUS2 = 200
 AGENT_BLOCK_RADIUS2 = 200
 INFECTION_TIMER_START = 20
 INFECTION_TIMER_DECAY = 0.8
+BLOCKING_TIME = 3
 
 AUDIO =
   infection_complete: love.audio.newSource "music/InfectionComplete.wav", "static"
@@ -180,15 +181,20 @@ generate_agents = () ->
   for i = 1, 10
     table.insert result, {
       id: i
+      active: true
       start_order: i
       source: 0
       destination: 0
       position: vector(0, 0),
       job: nil
+      blocking_time: BLOCKING_TIME
       blocked: false
     }
 
   result
+
+active_agents = (agents) ->
+  lume.filter agents, (a) -> a.active
 
 tile_pos_to_world_pos = (x, y) ->
   vector(x, y) * TILE_SIZE
@@ -501,9 +507,10 @@ love.load = ->
 love.update = (dt) ->
   time = love.timer.getTime! - state.map_start_time
 
-  blockers = lume.filter state.agents, (a) -> a.job == JOB.block
+  agents = active_agents state.agents
+  blockers = lume.filter agents, (a) -> a.job == JOB.block
 
-  for a in *state.agents
+  for a in *agents
     pre_move = a.position
 
     update_agent_position a, dt
@@ -511,10 +518,15 @@ love.update = (dt) ->
 
     apply_healing a, pre_move, state.map
 
+  for a in *blockers
+    a.blocking_time -= dt
+    if a.blocking_time < 0
+      a.active = false
+
   x, y =  love.mouse.getPosition!
   x, y = project_to_world x, y
 
-  hover_agent = find_agent_at x, y, state.agents
+  hover_agent = find_agent_at x, y, agents
   state.hover_agent_id = hover_agent and hover_agent.id
 
   state.infection_timer -= dt
@@ -536,7 +548,9 @@ love.update = (dt) ->
   Timer.update(dt)
 
 love.keypressed = (key) ->
-  hover_agent = find_agent state.select_agent_id, state.agents
+  agents = active_agents state.agents
+
+  hover_agent = find_agent state.select_agent_id, agents
 
   switch key
     when "1"
@@ -547,6 +561,8 @@ love.keypressed = (key) ->
       state.active_job = "rotate"
 
 love.mousepressed = (x, y, button) ->
+  agents = active_agents state.agents
+
   if button != 1
     return
 
@@ -554,7 +570,7 @@ love.mousepressed = (x, y, button) ->
   active_job = state.active_job
 
   if active_job
-    select_agent = find_agent_at x, y, state.agents
+    select_agent = find_agent_at x, y, agents
 
     if active_job == "dig"
       state.dig_agent_id = select_agent.id
@@ -571,9 +587,13 @@ love.mousereleased = (x, y, button) ->
     x, y = project_to_world x, y
     apply_dig_agent dig_agent, x, y, map
 
+    dig_agent.active = false
+
   state.dig_agent_id = nil
 
 love.draw = ->
+  agents = active_agents state.agents
+
   scale = love.window.getPixelScale!
   love.graphics.scale scale
 
@@ -583,7 +603,7 @@ love.draw = ->
   for idx, tile in ipairs state.map
     draw_tile idx, tile
 
-  for a in *state.agents
+  for a in *agents
     {:x, :y} = a.position
     x, y = project_to_screen x, y
 
