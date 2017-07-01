@@ -11,7 +11,8 @@ INFECTION_TIMER_START = 20
 INFECTION_TIMER_DECAY = 0.8
 
 AUDIO =
-  heal: love.audio.newSource "music/heal.wav", "static"
+  infection_complete: love.audio.newSource "music/InfectionComplete.wav", "static"
+  heal: love.audio.newSource "music/Heal.wav", "static"
   play_theme_loop: love.audio.newSource "music/playThemeLoopFull.wav"
 
 JOB =
@@ -512,6 +513,8 @@ love.update = (dt) ->
   state.infection_timer -= dt
 
   if state.infection_timer < 0
+    AUDIO.infection_complete\play!
+
     state.infection_timer_max *= INFECTION_TIMER_DECAY
     state.infection_timer = state.infection_timer_max
 
