@@ -734,8 +734,14 @@ love.draw = ->
       e = 1 - duration / DURATION
       e = 1 - e * e * e * e * e
 
-      love.graphics.setColor 50, 50, 50, (1 - e) * 255
-      love.graphics.circle "fill", x, y - e * 30, 7
+      love.graphics.setColor 128, 128, 128, (1 - e) * 255
+      love.graphics.circle "fill", x + 4, y - e * 30, 5
+      love.graphics.circle "fill", x - 3, y - e * 40, 4
+      love.graphics.circle "fill", x + 7, y - e * 40, 2
+      love.graphics.setColor 255, 255, 255, (1 - e) * 255
+      love.graphics.circle "fill", x - 10, y - e * 20, 8
+      love.graphics.circle "fill", x + 8, y - e * 20, 6
+      love.graphics.circle "fill", x - 5, y - e * 30, 5
 
   for g in *gfx.glows
     duration = time - g.since
