@@ -1,17 +1,27 @@
 inspect = require "lib.inspect"
 lume = require "lib.lume"
+Timer = require "lib.hump.timer"
 vector = require "lib.hump.vector"
 
 state =
   map_start_time: 0
   map: {}
   agents: {}
+  hover_agent_id: nil
+  active_job: nil
 
 MAP_SIZE = 10
 TILE_SIZE = 50
+AGENT_MATCH_RADIUS2 = 200
+AGENT_BLOCK_RADIUS2 = 200
 
 AUDIO =
   play_theme_loop: love.audio.newSource "music/playThemeLoopFull.wav"
+
+JOB =
+  block: "block"
+  rotate: "rotate"
+  dig: "dig"
 
 local *
 
@@ -149,10 +159,13 @@ generate_agents = () ->
 
   for i = 1, 10
     table.insert result, {
+      id: i
       start_order: i
       source: 0
       destination: 0
-      position: vector(0, 0)
+      position: vector(0, 0),
+      job: nil
+      blocked: false
     }
 
   result
@@ -163,8 +176,13 @@ tile_pos_to_world = (x, y) ->
 calculate_start_time = (a) ->
   a.start_order * 2
 
+agent_distance2 = (a, b) ->
+  (a.position - b.position)\len2!
+
 update_agent_position = (a, dt) ->
   {:source, :destination, :position} = a
+
+  return if a.job == JOB.block
 
   x_source, y_source = from_1d_to_2d_idx source, MAP_SIZE
   x_dest, y_dest = from_1d_to_2d_idx destination, MAP_SIZE
@@ -273,15 +291,42 @@ calculate_agent_destination = (a, map, time) ->
   else
     a.destination
 
-update_agent_destination = (a, map, time) ->
+update_agent_destination = (a, map, blockers, time) ->
   new_destination = calculate_agent_destination a, map, time
+
+  if not a.blocked and
+    lume.match blockers, (b) -> agent_distance2(a, b) < AGENT_BLOCK_RADIUS2
+
+    tmp = a.source
+    a.source = a.destination
+    a.destination = tmp
+
+    a.blocked = true
+    -- add delay to avoid agents getting stuck
+    Timer.after 0.05, () -> a.blocked = false
+
+    return
 
   if new_destination != a.destination
     a.source = a.destination
     a.destination = new_destination
 
+find_agent_at = (world_x, world_y, agents) ->
+  w = vector world_x, world_y
+  for a in *agents
+    if (a.position - w)\len2! < AGENT_MATCH_RADIUS2
+      return a
+
+  nil
+
 project_to_screen = (x, y) ->
   x + 40, y + 40
+
+project_to_world = (x, y) ->
+  x - 40, y - 40
+
+find_agent = (id, agents) ->
+  lume.match agents, (a) -> a.id == id
 
 draw_tile = (idx, tile) ->
   x, y = from_1d_to_2d_idx idx, MAP_SIZE
@@ -328,10 +373,40 @@ love.load = ->
 love.update = (dt) ->
   time = love.timer.getTime! - state.map_start_time
 
+  blockers = lume.filter state.agents, (a) -> a.job == JOB.block
+
   for a in *state.agents
 
     update_agent_position a, dt
-    update_agent_destination a, state.map, time
+    update_agent_destination a, state.map, blockers, time
+
+  x, y =  love.mouse.getPosition!
+  x, y = project_to_world x, y
+
+  hover_agent = find_agent_at x, y, state.agents
+  state.hover_agent_id = hover_agent and hover_agent.id
+
+  Timer.update(dt)
+
+love.keypressed = (key) ->
+  hover_agent = find_agent state.select_agent_id, state.agents
+
+  switch key
+    when "1"
+      state.active_job = "block"
+    when "2"
+      state.active_job = "rotate"
+    when "3"
+      state.active_job = "dig"
+
+love.mousepressed = (x, y, button) ->
+  if button != 1
+    return
+
+  x, y = project_to_world x, y
+
+  select_agent = find_agent_at x, y, state.agents
+  select_agent.job = state.active_job if not select_agent.job and state.active_job
 
 love.draw = ->
 
@@ -342,5 +417,10 @@ love.draw = ->
     {:x, :y} = a.position
     x, y = project_to_screen x, y
 
-    love.graphics.setColor 255, 0, 0
+    color = if state.hover_agent_id == a.id
+      {255, 0, 0}
+    else
+      {255, 255, 0}
+
+    love.graphics.setColor color
     love.graphics.circle "fill", x, y, 7
