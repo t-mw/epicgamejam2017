@@ -41,11 +41,16 @@ generate_map = (size) ->
 
   result
 
-generate_map_route = (start_idx, branch_count, map) ->
+generate_map_route = (start_idx, length, branch_count, visited, map) ->
   idx = start_idx
+  n = 0
 
-  while true
+  while n < length
+    n += 1
+    visited[idx] = true
+
     tile = map[idx]
+
     rand1 = math.random!
     rand2 = math.random!
 
@@ -54,69 +59,71 @@ generate_map_route = (start_idx, branch_count, map) ->
     idx_s = get_map_tile_neighbor_dir "south", idx, map
     idx_n = get_map_tile_neighbor_dir "north", idx, map
 
-    count = (idx_e and 1 or 0) +
-      (idx_w and 1 or 0) +
-      (idx_s and 1 or 0) +
-      (idx_n and 1 or 0)
+    free_e = idx_e and not map[idx_e].west and not tile.east and not visited[idx_e]
+    free_w = idx_w and not map[idx_w].east and not tile.west and not visited[idx_w]
+    free_s = idx_s and not map[idx_s].north and not tile.south and not visited[idx_s]
+    free_n = idx_n and not map[idx_n].south and not tile.north and not visited[idx_n]
+
+    count = (free_e and 1 or 0) +
+      (free_w and 1 or 0) +
+      (free_s and 1 or 0) +
+      (free_n and 1 or 0)
 
     inv_count = 1 / count
 
     generate_branch = branch_count > 0 and math.random! < 0.4
 
-    if rand1 < inv_count and idx_e
+    if rand1 < inv_count and free_e
       n_tile = map[idx_e]
 
-      if not n_tile.west and not tile.east
-        n_tile.west = true
-        tile.east = true
+      n_tile.west = true
+      tile.east = true
 
-        idx = idx_e
+      idx = idx_e
 
-        generate_map_route(idx, branch_count - 1, map) if generate_branch
-        continue
+      generate_map_route(idx, 4, branch_count - 1, visited, map) if generate_branch
+      continue
 
-    elseif rand1 < inv_count * 2 and idx_w
+    elseif rand1 < inv_count * 2 and free_w
       n_tile = map[idx_w]
 
-      if not n_tile.east and not tile.west
-        n_tile.east = true
-        tile.west = true
+      n_tile.east = true
+      tile.west = true
 
-        idx = idx_w
+      idx = idx_w
 
-        generate_map_route(idx, branch_count - 1, map) if generate_branch
-        continue
+      generate_map_route(idx, 4, branch_count - 1, visited, map) if generate_branch
+      continue
 
-    elseif rand1 < inv_count * 3 and idx_s
+    elseif rand1 < inv_count * 3 and free_s
       n_tile = map[idx_s]
 
-      if not n_tile.north and not tile.south
-        n_tile.north = true
-        tile.south = true
+      n_tile.north = true
+      tile.south = true
 
-        idx = idx_s
+      idx = idx_s
 
-        generate_map_route(idx, branch_count - 1, map) if generate_branch
-        continue
+      generate_map_route(idx, 4, branch_count - 1, visited, map) if generate_branch
+      continue
 
-    elseif idx_n
+    elseif free_n
       n_tile = map[idx_n]
 
-      if not n_tile.south and not tile.north
-        n_tile.south = true
-        tile.north = true
+      n_tile.south = true
+      tile.north = true
 
-        idx = idx_n
+      idx = idx_n
 
-        generate_map_route(idx, branch_count - 1, map) if generate_branch
-        continue
+      generate_map_route(idx, 4, branch_count - 1, visited, map) if generate_branch
+      continue
 
     break
 
 generate_map_routes = (start_x, start_y, map) ->
+  visited = {}
   start_idx = from_2d_to_1d_idx start_x, start_y, MAP_SIZE
 
-  generate_map_route start_idx, 10, map
+  generate_map_route start_idx, 10, 3, visited, map
 
 generate_agents = () ->
   result = {}
