@@ -184,6 +184,7 @@ generate_agents = () ->
     table.insert result, {
       id: i
       active: true
+      inactive_since: 0
       start_order: i
       source: 0
       destination: 0
@@ -195,8 +196,15 @@ generate_agents = () ->
 
   result
 
-active_agents = (agents) ->
+deactivate_agent = (a, time) ->
+  a.active = false
+  a.inactive_since = time
+
+filter_active_agents = (agents) ->
   lume.filter agents, (a) -> a.active
+
+filter_inactive_agents = (agents) ->
+  lume.filter agents, (a) -> not a.active
 
 tile_pos_to_world_pos = (x, y) ->
   vector(x, y) * TILE_SIZE
@@ -528,7 +536,7 @@ love.load = ->
 love.update = (dt) ->
   time = love.timer.getTime! - state.map_start_time
 
-  agents = active_agents state.agents
+  agents = filter_active_agents state.agents
   blockers = lume.filter agents, (a) -> a.job == JOB.block
 
   for a in *agents
@@ -542,7 +550,7 @@ love.update = (dt) ->
   for a in *blockers
     a.blocking_time -= dt
     if a.blocking_time < 0
-      a.active = false
+      deactivate_agent a, time
 
   x, y =  love.mouse.getPosition!
   x, y = project_to_world x, y
@@ -571,7 +579,7 @@ love.update = (dt) ->
   Timer.update(dt)
 
 love.keypressed = (key) ->
-  agents = active_agents state.agents
+  agents = filter_active_agents state.agents
 
   hover_agent = find_agent state.select_agent_id, agents
 
@@ -584,7 +592,7 @@ love.keypressed = (key) ->
       state.active_job = "rotate"
 
 love.mousepressed = (x, y, button) ->
-  agents = active_agents state.agents
+  agents = filter_active_agents state.agents
 
   if button != 1
     return
@@ -610,12 +618,15 @@ love.mousereleased = (x, y, button) ->
     x, y = project_to_world x, y
     apply_dig_agent dig_agent, x, y, map
 
-    dig_agent.active = false
+    time = love.timer.getTime! - state.map_start_time
+    deactivate_agent dig_agent, time
 
   state.dig_agent_id = nil
 
 love.draw = ->
-  agents = active_agents state.agents
+  time = love.timer.getTime! - state.map_start_time
+
+  agents = filter_active_agents state.agents
 
   scale = love.window.getPixelScale!
   love.graphics.scale scale
@@ -645,6 +656,23 @@ love.draw = ->
       y1 /= scale
 
       love.graphics.line x, y, x1, y1
+
+  inactive_agents = filter_inactive_agents state.agents
+
+  for a in *inactive_agents
+    duration = time - a.inactive_since
+
+    DURATION = 2
+
+    if duration < DURATION
+      {:x, :y} = a.position
+      x, y = project_to_screen x, y
+
+      e = 1 - duration / DURATION
+      e = 1 - e * e * e * e * e
+
+      love.graphics.setColor 50, 50, 50, (1 - e) * 255
+      love.graphics.circle "fill", x, y - e * 30, 7
 
   bar_width = 500
   love.graphics.translate 0.5 * (width - bar_width), height - 40
