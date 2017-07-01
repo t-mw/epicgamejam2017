@@ -8,7 +8,7 @@ state =
   agents: {}
 
 MAP_SIZE = 10
-TILE_SIZE = 30
+TILE_SIZE = 50
 
 AUDIO =
   play_theme_loop: love.audio.newSource "music/playThemeLoop.wav"
@@ -123,7 +123,7 @@ generate_agents = () ->
 
   for i = 1, 10
     table.insert result, {
-      start_order: 1
+      start_order: i
       source: 0
       destination: 0
       position: vector(0, 0)
@@ -135,7 +135,7 @@ tile_pos_to_world = (x, y) ->
   vector(x, y) * TILE_SIZE
 
 calculate_start_time = (a) ->
-  a.start_order * 0.5
+  a.start_order * 2
 
 update_agent_position = (a, dt) ->
   {:source, :destination, :position} = a
@@ -150,7 +150,7 @@ update_agent_position = (a, dt) ->
     a.position = vector(x, y)
 
   else
-    SPEED = 10
+    SPEED = 20
 
     diff = dest_pos - position
     diff\trimInplace SPEED
@@ -304,5 +304,5 @@ love.draw = ->
     {:x, :y} = a.position
     x, y = project_to_screen x, y
 
-    love.graphics.setColor 0, 255, 0
-    love.graphics.circle "fill", x, y, 3
+    love.graphics.setColor 255, 0, 0
+    love.graphics.circle "fill", x, y, 7
