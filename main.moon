@@ -11,7 +11,7 @@ MAP_SIZE = 10
 TILE_SIZE = 50
 
 AUDIO =
-  play_theme_loop: love.audio.newSource "music/playThemeLoop.wav"
+  play_theme_loop: love.audio.newSource "music/playThemeLoopFull.wav"
 
 local *
 
