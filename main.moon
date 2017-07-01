@@ -583,7 +583,8 @@ love.draw = ->
       love.graphics.line x, y, x1, y1
 
   bar_width = 500
+  love.graphics.translate 0.5 * (width - bar_width), height - 40
   love.graphics.setColor 50, 50, 50
-  love.graphics.rectangle "fill", 100, height - 40, bar_width, 20
+  love.graphics.rectangle "fill", 0, 0, bar_width, 20
   love.graphics.setColor 255, 0, 0
-  love.graphics.rectangle "fill", 100, height - 40, bar_width * (INFECTION_TIMER - state.infection_timer) / INFECTION_TIMER, 20
+  love.graphics.rectangle "fill", 0, 0, bar_width * (INFECTION_TIMER - state.infection_timer) / INFECTION_TIMER, 20
