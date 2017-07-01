@@ -13,6 +13,8 @@ TILE_SIZE = 30
 AUDIO =
   play_theme_loop: love.audio.newSource "music/playThemeLoop.wav"
 
+local *
+
 filled_array = (size, val = 0) ->
   result = {}
   for i = 1, size
@@ -31,13 +33,90 @@ generate_map = (size) ->
   for i = 1, size * size
     table.insert result, {
       idx: i
-      north: math.random! < 0.5
-      west: math.random! < 0.5
-      south: math.random! < 0.5
-      east: math.random! < 0.5
+      north: false
+      west: false
+      south: false
+      east: false
     }
 
   result
+
+generate_map_route = (start_idx, branch_count, map) ->
+  idx = start_idx
+
+  while true
+    tile = map[idx]
+    rand1 = math.random!
+    rand2 = math.random!
+
+    idx_e = get_map_tile_neighbor_dir "east", idx, map
+    idx_w = get_map_tile_neighbor_dir "west", idx, map
+    idx_s = get_map_tile_neighbor_dir "south", idx, map
+    idx_n = get_map_tile_neighbor_dir "north", idx, map
+
+    count = (idx_e and 1 or 0) +
+      (idx_w and 1 or 0) +
+      (idx_s and 1 or 0) +
+      (idx_n and 1 or 0)
+
+    inv_count = 1 / count
+
+    generate_branch = branch_count > 0 and math.random! < 0.4
+
+    if rand1 < inv_count and idx_e
+      n_tile = map[idx_e]
+
+      if not n_tile.west and not tile.east
+        n_tile.west = true
+        tile.east = true
+
+        idx = idx_e
+
+        generate_map_route(idx, branch_count - 1, map) if generate_branch
+        continue
+
+    elseif rand1 < inv_count * 2 and idx_w
+      n_tile = map[idx_w]
+
+      if not n_tile.east and not tile.west
+        n_tile.east = true
+        tile.west = true
+
+        idx = idx_w
+
+        generate_map_route(idx, branch_count - 1, map) if generate_branch
+        continue
+
+    elseif rand1 < inv_count * 3 and idx_s
+      n_tile = map[idx_s]
+
+      if not n_tile.north and not tile.south
+        n_tile.north = true
+        tile.south = true
+
+        idx = idx_s
+
+        generate_map_route(idx, branch_count - 1, map) if generate_branch
+        continue
+
+    elseif idx_n
+      n_tile = map[idx_n]
+
+      if not n_tile.south and not tile.north
+        n_tile.south = true
+        tile.north = true
+
+        idx = idx_n
+
+        generate_map_route(idx, branch_count - 1, map) if generate_branch
+        continue
+
+    break
+
+generate_map_routes = (start_x, start_y, map) ->
+  start_idx = from_2d_to_1d_idx start_x, start_y, MAP_SIZE
+
+  generate_map_route start_idx, 10, map
 
 generate_agents = () ->
   result = {}
@@ -78,45 +157,58 @@ update_agent_position = (a, dt) ->
 
     a.position = position + diff * dt
 
+get_map_tile_neighbor_dir = (dir, idx, map) ->
+  tile = map[idx]
+  x0, y0 = from_1d_to_2d_idx idx, MAP_SIZE
+
+  n_idx = nil
+
+  switch dir
+    when "east"
+      xn, yn = x0 + 1, y0
+      if xn >= 1 and xn <= MAP_SIZE and yn >= 1 and yn <= MAP_SIZE
+        n_idx = from_2d_to_1d_idx xn, yn, MAP_SIZE
+
+    when "west"
+      xn, yn = x0 - 1, y0
+      if xn >= 1 and xn <= MAP_SIZE and yn >= 1 and yn <= MAP_SIZE
+        n_idx = from_2d_to_1d_idx xn, yn, MAP_SIZE
+
+    when "south"
+      xn, yn = x0, y0 + 1
+      if xn >= 1 and xn <= MAP_SIZE and yn >= 1 and yn <= MAP_SIZE
+        n_idx = from_2d_to_1d_idx xn, yn, MAP_SIZE
+
+    when "north"
+      xn, yn = x0, y0 - 1
+      if xn >= 1 and xn <= MAP_SIZE and yn >= 1 and yn <= MAP_SIZE
+        n_idx = from_2d_to_1d_idx xn, yn, MAP_SIZE
+
+  n_idx
+
 get_map_tile_neighbor_indices = (idx, map) ->
   tile = map[idx]
   x0, y0 = from_1d_to_2d_idx idx, MAP_SIZE
 
   result = {}
 
-  -- east
-  xn, yn = x0 + 1, y0
-  if xn >= 1 and xn <= MAP_SIZE and yn >= 1 and yn <= MAP_SIZE
-    n_idx = from_2d_to_1d_idx xn, yn, MAP_SIZE
+  if n_idx = get_map_tile_neighbor_dir "east", idx, map
     n_tile = map[n_idx]
-
     if n_tile.west and tile.east
       table.insert result, n_idx
 
-  -- west
-  xn, yn = x0 - 1, y0
-  if xn >= 1 and xn <= MAP_SIZE and yn >= 1 and yn <= MAP_SIZE
-    n_idx = from_2d_to_1d_idx xn, yn, MAP_SIZE
+  if n_idx = get_map_tile_neighbor_dir "west", idx, map
     n_tile = map[n_idx]
-
     if n_tile.east and tile.west
       table.insert result, n_idx
 
-  -- south
-  xn, yn = x0, y0 + 1
-  if xn >= 1 and xn <= MAP_SIZE and yn >= 1 and yn <= MAP_SIZE
-    n_idx = from_2d_to_1d_idx xn, yn, MAP_SIZE
+  if n_idx = get_map_tile_neighbor_dir "south", idx, map
     n_tile = map[n_idx]
-
     if n_tile.north and tile.south
       table.insert result, n_idx
 
-  -- north
-  xn, yn = x0, y0 - 1
-  if xn >= 1 and xn <= MAP_SIZE and yn >= 1 and yn <= MAP_SIZE
-    n_idx = from_2d_to_1d_idx xn, yn, MAP_SIZE
+  if n_idx = get_map_tile_neighbor_dir "north", idx, map
     n_tile = map[n_idx]
-
     if n_tile.south and tile.north
       table.insert result, n_idx
 
@@ -190,6 +282,8 @@ love.load = ->
   state.map_start_time = love.timer.getTime!
   state.map = generate_map MAP_SIZE
   state.agents = generate_agents!
+
+  generate_map_routes 1, 1, state.map
 
   love.audio.play AUDIO.play_theme_loop
 
