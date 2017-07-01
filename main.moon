@@ -485,7 +485,9 @@ draw_agent = (a, x, y) ->
     state.gfx.doctorfront, 0, 1
 
   x = lume.round x - TILE_SIZE / 2 + dx
-  y = lume.round y - TILE_SIZE / 2
+
+  FEET_OFFSET = 15
+  y = lume.round y - TILE_SIZE + FEET_OFFSET
 
   love.graphics.draw sprite, x, y, 0, scale_x * TILE_SCALE, TILE_SCALE
 
