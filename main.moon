@@ -12,6 +12,7 @@ INFECTION_TIMER_START = 20
 INFECTION_TIMER_DECAY = 0.8
 INFECTION_TIMER_MIN = 5
 BLOCKING_TIME = 3
+NUM_VILLAGE_TYPES = 3
 
 TILE_SCALE = 48 / 32
 
@@ -61,7 +62,10 @@ is_infection_critical = (level) ->
   level == 100
 
 map_tile = (i) ->
+  --village/houses
   has_village = math.random! < 0.1
+  --  type of village
+  village_idx = math.floor(math.random! * NUM_VILLAGE_TYPES)
 
   x, y = from_1d_to_2d_idx i, MAP_SIZE
   max_rate = math.max MAP_SIZE - x, MAP_SIZE - y
@@ -77,6 +81,7 @@ map_tile = (i) ->
     :has_village
     infection_level: infection_rate
     :infection_rate
+    :village_idx
   }
 
 generate_map = (size) ->
@@ -497,7 +502,10 @@ draw_tile_path = (tile, x, y, x0, y0) ->
   x2, y2 = project_to_screen x2, y2
 
   path_idx = -1
+  angle = 0
   sum = 0
+  x_off = 0
+  y_off = 0
   sum += 1 if tile.north
   sum += 1 if tile.west
   sum += 1 if tile.south
@@ -505,24 +513,74 @@ draw_tile_path = (tile, x, y, x0, y0) ->
 
   if sum == 4
     path_idx = 0
+
   elseif sum == 3
     path_idx = 3
+    if not tile.east  
+      angle = 0
+    else if not tile.south
+      angle = 90
+      x_off = TILE_SIZE
+    else if not tile.west
+      angle = 180
+      x_off = TILE_SIZE
+      y_off = TILE_SIZE
+    else if not tile.north
+      angle = 270
+      y_off = TILE_SIZE
+
   elseif sum == 2
-    path_idx = 2
+    if tile.north and tile.south
+      path_idx = 2
+    else if tile.west and tile.east
+      path_idx = 2
+      angle = 90
+      x_off = TILE_SIZE
+    else if tile.east and tile.south
+      path_idx = 1 
+    else if tile.south and tile.west
+      path_idx = 1 
+      angle = 90
+      x_off = TILE_SIZE
+    else if tile.west and tile.north
+      path_idx = 1 
+      angle = 180
+      x_off = TILE_SIZE
+      y_off = TILE_SIZE
+    else if tile.north and tile.east
+      path_idx = 1 
+      angle = 270
+      y_off = TILE_SIZE
+      --x_off = TILE_SIZE
+
   else if sum == 1
-    path_idx = 1 
+    path_idx = 4 
+    if tile.north
+      angle = 0
+    else if tile.east
+      angle = 90
+      x_off = TILE_SIZE
+    else if tile.south
+      angle = 180
+      x_off = TILE_SIZE
+      y_off = TILE_SIZE
+    else if tile.west
+      angle = 270
+      y_off = TILE_SIZE
+    
 
   --  ii = math.floor(math.random! * 4)
-  
+
+  -- draw path depending on index
+  if path_idx ~= -1
+    love.graphics.setColor 100, 100, 100
+    love.graphics.draw(state.gfx.paths_image, state.gfx.paths_qs[path_idx], x0+x_off, y0+y_off, math.rad(angle), TILE_SCALE, TILE_SCALE)
+
   --love.graphics.setColor 200, 200, 0
   --love.graphics.line x1, y1, x1, y0 if tile.north
   --love.graphics.line x1, y1, x0, y1 if tile.west
   --love.graphics.line x1, y1, x1, y2 if tile.south
   --love.graphics.line x1, y1, x2, y1 if tile.east
-
-  -- draw path depending on index
-  if path_idx ~= -1
-    love.graphics.draw(state.gfx.paths_image, state.gfx.paths_qs[path_idx], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
 draw_tile = (idx, tile) ->
   x, y = from_1d_to_2d_idx idx, MAP_SIZE
@@ -541,23 +599,24 @@ draw_tile = (idx, tile) ->
   img_scale = TILE_SIZE / IMAGE_SIZE
   love.graphics.draw(state.gfx.grass, x0, y0, 0, TILE_SCALE, TILE_SCALE)
 
+  draw_tile_path(tile, x, y, x0, y0)
+
   if tile.has_village
     l = lume.round tile.infection_level
     frac = tile.infection_level / 100
 
     love.graphics.setColor 100, 100, 100
-    love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
+    --love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
 
     love.graphics.setColor 50 + l, 50, 50
     love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
 
     --draw village (one of the houses) graphics
-    love.graphics.draw(state.gfx.houses_image, state.gfx.houses_qs[2], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
+    love.graphics.draw(state.gfx.houses_image, state.gfx.houses_qs[tile.village_idx], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
   --love.graphics.setColor 0, 0, 0
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
 
-  draw_tile_path(tile, x, y, x0, y0)
   
 love.load = ->
   love.window.setMode 800, 600, highdpi: true
@@ -570,7 +629,6 @@ love.load = ->
   generate_map_routes 1, 1, state.map
 
   -- load tile images
-
   --  grass
   state.gfx.grass = love.graphics.newImage("graphics/grass.png")
   
@@ -591,6 +649,7 @@ love.load = ->
   qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
   qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
   qs[3] = love.graphics.newQuad(32*3, 0, 32, 32, h\getDimensions())
+  qs[4] = love.graphics.newQuad(32*4, 0, 32, 32, h\getDimensions())
   state.gfx.paths_qs = qs
 
   --  doctors
