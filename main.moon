@@ -12,6 +12,8 @@ INFECTION_TIMER_DECAY = 0.8
 INFECTION_TIMER_MIN = 5
 BLOCKING_TIME = 3
 
+TILE_SCALE = 48 / 32
+
 AUDIO =
   infection_complete: love.audio.newSource "music/InfectionComplete.wav", "static"
   heal: love.audio.newSource "music/Heal.wav", "static"
@@ -28,6 +30,7 @@ state =
   map_start_time: 0
   map: {}
   tiles: {}
+  gfx: {}
   agents: {}
   hover_agent_id: nil
   dig_agent_id: nil
@@ -452,6 +455,29 @@ project_to_world = (x, y) ->
 find_agent = (id, agents) ->
   lume.match agents, (a) -> a.id == id
 
+draw_agent = (a, x, y) ->
+  {:source, :destination} = a
+
+  x_source, y_source = from_1d_to_2d_idx source, MAP_SIZE
+  x_dest, y_dest = from_1d_to_2d_idx destination, MAP_SIZE
+
+  sprite, dx, scale_x = if x_source == x_dest and y_source == y_dest
+    state.gfx.doctorfront, 0, 1
+  elseif x_source > x_dest
+    state.gfx.doctorleft, 0, 1
+  elseif x_source < x_dest
+    state.gfx.doctorleft, TILE_SIZE, -1
+  elseif y_source > y_dest
+    state.gfx.doctorback, 0, 1
+  else
+    state.gfx.doctorfront, 0, 1
+
+  x = lume.round x - TILE_SIZE / 2 + dx
+  y = lume.round y - TILE_SIZE / 2
+
+  love.graphics.setColor 255, 255, 255
+  love.graphics.draw sprite, x, y, 0, scale_x * TILE_SCALE, TILE_SCALE
+
 draw_tile = (idx, tile) ->
   x, y = from_1d_to_2d_idx idx, MAP_SIZE
 
@@ -472,8 +498,7 @@ draw_tile = (idx, tile) ->
   love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
 
   --draw grass graphics
-  img_scale = 48/32
-  love.graphics.draw(state.tiles.grass, x0, y0, 0, img_scale, img_scale)
+  love.graphics.draw(state.tiles.grass, x0, y0, 0, TILE_SCALE, TILE_SCALE)
 
   if tile.has_village
     l = lume.round tile.infection_level
@@ -486,7 +511,7 @@ draw_tile = (idx, tile) ->
     love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
 
     --draw village (one of the houses) graphics
-    love.graphics.draw(state.tiles.houses, state.tiles.houses_q1, x0, y0, math.rad(0), img_scale, img_scale)
+    love.graphics.draw(state.tiles.houses, state.tiles.houses_q1, x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
   --love.graphics.setColor 0, 0, 0
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
@@ -519,7 +544,9 @@ love.load = ->
   --  paths
   state.tiles.paths = love.graphics.newImage("graphics/path2.png")
 
-  
+  state.gfx.doctorleft = love.graphics.newImage("graphics/doctorleft.png")
+  state.gfx.doctorback = love.graphics.newImage("graphics/doctorback.png")
+  state.gfx.doctorfront = love.graphics.newImage("graphics/doctorfront.png")
 
   with AUDIO.play_theme_loop
     \setLooping true
@@ -628,6 +655,9 @@ love.draw = ->
 
   agents = filter_active_agents state.agents
 
+  -- sort by depth
+  table.sort agents, (a, b) -> a.position.y < b.position.y
+
   scale = love.window.getPixelScale!
   love.graphics.scale scale
 
@@ -646,8 +676,7 @@ love.draw = ->
     else
       {255, 255, 0}
 
-    love.graphics.setColor color
-    love.graphics.circle "fill", x, y, 7
+    draw_agent a, x, y
 
     if a.id == state.dig_agent_id
       x1, y1 = love.mouse.getPosition!
