@@ -479,6 +479,14 @@ love.load = ->
   with AUDIO.play_theme_loop
     \setLooping true
     \play!
+    \setVolume 0
+    Timer.script (wait) ->
+      t = 0
+      wait 1
+      Timer.during 2, (dt) ->
+        t += dt
+        volume = t / 2
+        \setVolume volume * volume
 
 love.update = (dt) ->
   time = love.timer.getTime! - state.map_start_time
