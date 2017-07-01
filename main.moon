@@ -187,24 +187,23 @@ generate_map_routes = (start_x, start_y, map) ->
     if lume.count(visited) + 1 > 40
       break
 
-generate_agents = () ->
-  result = {}
+add_agent = (agents) ->
+  id = #agents + 1
 
-  for i = 1, 10
-    table.insert result, {
-      id: i
-      active: true
-      inactive_since: 0
-      start_order: i
-      source: 0
-      destination: 0
-      position: vector(0, 0),
-      job: nil
-      blocking_time: BLOCKING_TIME
-      blocked: false
-    }
+  table.insert agents, {
+    :id
+    active: true
+    created_at: get_time!
+    inactive_since: 0
+    source: 0
+    destination: 0
+    position: vector(0, 0),
+    job: nil
+    blocking_time: BLOCKING_TIME
+    blocked: false
+  }
 
-  result
+  agents
 
 deactivate_agent = (a, time) ->
   a.active = false
@@ -222,9 +221,6 @@ tile_pos_to_world_pos = (x, y) ->
 world_pos_to_tile_pos = (v) ->
   v = v / TILE_SIZE
   lume.round(v.x), lume.round(v.y)
-
-calculate_start_time = (a) ->
-  a.start_order * 2
 
 agent_distance2 = (a, b) ->
   (a.position - b.position)\len2!
@@ -312,16 +308,15 @@ calculate_new_agent_destination = (a, map, time) ->
 
   new_destination = destination
 
-  if time > calculate_start_time a
-    if destination == 0
-      new_destination = 1
-    else
-      neighbors = get_map_tile_neighbor_indices destination, map
+  if destination == 0
+    new_destination = 1
+  else
+    neighbors = get_map_tile_neighbor_indices destination, map
 
-      if #neighbors > 0
-        -- avoid backtracking
-        lume.remove neighbors, source if #neighbors > 1
-        new_destination = lume.randomchoice(neighbors) or destination
+    if #neighbors > 0
+      -- avoid backtracking
+      lume.remove neighbors, source if #neighbors > 1
+      new_destination = lume.randomchoice(neighbors) or destination
 
   new_destination
 
@@ -549,7 +544,6 @@ love.load = ->
 
   state.map_start_time = love.timer.getTime!
   state.map = generate_map MAP_SIZE
-  state.agents = generate_agents!
 
   generate_map_routes 1, 1, state.map
 
@@ -583,6 +577,14 @@ love.load = ->
   state.gfx.doctorfront = love.graphics.newImage("graphics/doctorfront.png")
 
   state.gfx.glow = love.graphics.newImage("graphics/glow.png")
+
+  MAX_COUNT = 20
+  count = 0
+  handle = Timer.every 3, () ->
+    add_agent state.agents
+
+    count += 1
+    count < MAX_COUNT
 
   with AUDIO.play_theme_loop
     \setLooping true
@@ -707,10 +709,13 @@ love.draw = ->
     {:x, :y} = a.position
     x, y = project_to_screen x, y
 
+    DURATION = 2
+    duration = math.min((time - a.created_at) / DURATION, 1)
+
     color = if state.hover_agent_id == a.id
-      {255, 200, 200}
+      {255 * duration, 200 * duration, 200 * duration}
     else
-      {255, 255, 255}
+      {255 * duration, 255 * duration, 255 * duration}
 
     love.graphics.setColor color
     draw_agent a, x, y
