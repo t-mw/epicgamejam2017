@@ -380,7 +380,9 @@ apply_dig_agent = (agent, target_x, target_y, map) ->
     map[idx]
   )()
 
-  if source_tile and target_tile
+  applied = false
+
+  if source_tile and target_tile and source_tile.idx != target_tile.idx
     source_idx = source_tile.idx
     target_idx = target_tile.idx
 
@@ -389,21 +391,27 @@ apply_dig_agent = (agent, target_x, target_y, map) ->
     idx_n = get_map_tile_neighbor_dir "north", source_idx, map
     idx_s = get_map_tile_neighbor_dir "south", source_idx, map
 
-    if target_idx == idx_e
+    if target_idx == idx_e and (not source_tile.east or not target_tile.west)
       source_tile.east = true
       target_tile.west = true
+      applied = true
 
-    if target_idx == idx_w
+    if target_idx == idx_w and (not source_tile.west or not target_tile.east)
       source_tile.west = true
       target_tile.east = true
+      applied = true
 
-    if target_idx == idx_n
+    if target_idx == idx_n and (not source_tile.north or not target_tile.south)
       source_tile.north = true
       target_tile.south = true
+      applied = true
 
-    if target_idx == idx_s
+    if target_idx == idx_s and (not source_tile.south or not target_tile.north)
       source_tile.south = true
       target_tile.north = true
+      applied = true
+
+  applied
 
 apply_healing = (a, pre_move, map) ->
 
@@ -766,9 +774,9 @@ love.mousereleased = (x, y, button) ->
 
   if dig_agent = find_agent state.dig_agent_id, agents
     x, y = project_to_world x, y
-    apply_dig_agent dig_agent, x, y, map
 
-    deactivate_agent dig_agent, get_time!
+    if apply_dig_agent dig_agent, x, y, map
+      deactivate_agent dig_agent, get_time!
 
   state.dig_agent_id = nil
 
