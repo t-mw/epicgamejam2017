@@ -414,6 +414,9 @@ project_to_world = (x, y) ->
   width = love.graphics.getWidth! / scale
   height = love.graphics.getHeight! / scale
 
+  x /= scale
+  y /= scale
+
   size = (1 + MAP_SIZE) * TILE_SIZE
   x -= (width - size) / 2
   y -= (height - size) / 2
@@ -573,6 +576,9 @@ love.draw = ->
 
     if a.id == state.dig_agent_id
       x1, y1 = love.mouse.getPosition!
+
+      x1 /= scale
+      y1 /= scale
 
       love.graphics.line x, y, x1, y1
 
