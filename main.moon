@@ -44,6 +44,9 @@ from_2d_to_1d_idx = (x, y, width) ->
 from_1d_to_2d_idx = (i, width) ->
   math.floor((i - 1) / width) + 1, ((i - 1) % width) + 1
 
+is_infection_critical = (level) ->
+  level == 100
+
 map_tile = (i) ->
   has_village = math.random! < 0.1
 
@@ -327,7 +330,11 @@ update_agent_destination = (a, map, blockers, time) ->
 
     return
 
-  if new_destination != a.destination
+  new_destination_tile = map[new_destination]
+  is_critical = new_destination_tile and
+    is_infection_critical new_destination_tile.infection_level
+
+  if new_destination != a.destination and not is_critical
     a.source = a.destination
     a.destination = new_destination
 
