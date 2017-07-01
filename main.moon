@@ -619,7 +619,7 @@ love.update = (dt) ->
   x, y = project_to_world x, y
 
   hover_agent = find_agent_at x, y, agents
-  state.hover_agent_id = hover_agent and hover_agent.id
+  state.hover_agent_id = hover_agent and not hover_agent.job and hover_agent.id
 
   state.infection_timer -= dt
 
@@ -666,7 +666,7 @@ love.mousepressed = (x, y, button) ->
   if active_job
     select_agent = find_agent_at x, y, agents
 
-    if select_agent
+    if select_agent and not select_agent.job
       if active_job == "dig"
         state.dig_agent_id = select_agent.id
       else
