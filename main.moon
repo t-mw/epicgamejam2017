@@ -10,7 +10,7 @@ AGENT_BLOCK_RADIUS2 = 200
 INFECTION_TIMER = 10
 
 AUDIO =
-  heal: love.audio.newSource "music/heal.wav", "static"
+  heal: love.audio.newSource "music/Heal.wav", "static"
   play_theme_loop: love.audio.newSource "music/playThemeLoopFull.wav"
 
 JOB =
@@ -23,6 +23,7 @@ local *
 state =
   map_start_time: 0
   map: {}
+  tiles: {}
   agents: {}
   hover_agent_id: nil
   dig_agent_id: nil
@@ -445,6 +446,10 @@ draw_tile = (idx, tile) ->
   love.graphics.setColor 50, 100 + ((idx * 124290) % 100), 50
   love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
 
+  --draw grass graphics
+  img_scale = 48/32
+  love.graphics.draw(state.tiles.grass, x0, y0, 0, img_scale, img_scale)
+
   if tile.has_village
     l = lume.round tile.infection_level
     frac = tile.infection_level / 100
@@ -455,8 +460,11 @@ draw_tile = (idx, tile) ->
     love.graphics.setColor 50 + l, 50, 50
     love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
 
-  love.graphics.setColor 0, 0, 0
-  love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
+    --draw village (one of the houses) graphics
+    love.graphics.draw(state.tiles.houses, state.tiles.houses_q1, x0, y0, math.rad(0), img_scale, img_scale)
+
+  --love.graphics.setColor 0, 0, 0
+  --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
 
   love.graphics.setColor 200, 200, 0
 
@@ -475,6 +483,18 @@ love.load = ->
   state.agents = generate_agents!
 
   generate_map_routes 1, 1, state.map
+
+  -- load tile images
+  --  grass
+  state.tiles.grass = love.graphics.newImage("graphics/grass.png")
+  --  village houses
+  h = love.graphics.newImage("graphics/houses.png")
+  state.tiles.houses = h
+  state.tiles.houses_q1 = love.graphics.newQuad(0, 0, 32, 32, h\getDimensions())
+  --  paths
+  state.tiles.paths = love.graphics.newImage("graphics/path2.png")
+
+  
 
   with AUDIO.play_theme_loop
     \setLooping true
