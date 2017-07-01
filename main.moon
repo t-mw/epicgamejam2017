@@ -664,10 +664,11 @@ love.mousepressed = (x, y, button) ->
   if active_job
     select_agent = find_agent_at x, y, agents
 
-    if active_job == "dig"
-      state.dig_agent_id = select_agent.id
-    else
-      select_agent.job = active_job if not select_agent.job
+    if select_agent
+      if active_job == "dig"
+        state.dig_agent_id = select_agent.id
+      else
+        select_agent.job = active_job if not select_agent.job
 
 love.mousereleased = (x, y, button) ->
   if button != 1
