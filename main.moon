@@ -341,6 +341,8 @@ calculate_agent_destination = (a, map, time) ->
     a.destination
 
 update_agent_destination = (a, map, blockers, time) ->
+  return if a.job == "block"
+
   new_destination = calculate_agent_destination a, map, time
 
   if not a.blocked and
