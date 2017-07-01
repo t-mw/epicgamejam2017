@@ -243,7 +243,7 @@ update_agent_position = (a, dt) ->
     a.position = vector(x, y)
 
   else
-    SPEED = 20
+    SPEED = 40
 
     diff = dest_pos - position
     diff\trimInplace SPEED
