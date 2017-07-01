@@ -637,7 +637,7 @@ love.update = (dt) ->
         infection_level2 = math.min infection_level1 + t.infection_rate, 100
 
         if infection_level2 != infection_level1
-          Timer.tween 2, t, {infection_level: infection_level2}, "expo"
+          Timer.tween 2, t, {infection_level: infection_level2}, "out-expo"
 
   Timer.update(dt)
 
