@@ -24,6 +24,7 @@ FONTS = {}
 AUDIO =
   infection: love.audio.newSource "music/infection.ogg", "static"
   infection_complete: love.audio.newSource "music/InfectionComplete.ogg", "static"
+  menu_loop: love.audio.newSource "music/MenuLoop.ogg"
   raven: love.audio.newSource "music/Raven.ogg", "static"
   heal: love.audio.newSource "music/Heal.ogg", "static"
   play_theme_loop: love.audio.newSource "music/playthemeLoopFull.ogg"
@@ -40,6 +41,7 @@ state = nil
 gfx = nil
 
 export game_states = {
+  menu: {}
   game: {}
   score: {}
 }
@@ -82,12 +84,13 @@ love.load = ->
   GFX.doctorfront = new_image_no_filter "graphics/doctorfront.png"
 
   GFX.glow = new_image_no_filter "graphics/glow.png"
+  GFX.title_screen = new_image_no_filter "graphics/titlescreen.png"
 
   FONTS.main = love.graphics.newFont "fonts/main.ttf", 50
   FONTS.sub = love.graphics.newFont "fonts/main.ttf", 30
 
   Gamestate.registerEvents!
-  Gamestate.switch game_states.game
+  Gamestate.switch game_states.menu
 
 new_image_no_filter = (path) ->
   with love.graphics.newImage path
@@ -808,6 +811,40 @@ draw_tile = (idx, tile) ->
 
   --love.graphics.setColor 0, 0, 0
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
+
+credits = ""
+
+game_states.menu.enter = ->
+  start_loop AUDIO.menu_loop, 2
+
+  credits = {
+    "programming - Tobias Mansfield-Williams",
+    "programming/art - Mike Vasiljevs",
+    "sound/music/art - Lukas Fretz"
+  }
+
+  credits = table.concat lume.shuffle(credits), "\n"
+
+game_states.menu.keypressed = (self, key) ->
+  switch key
+    when "space"
+      stop_loop AUDIO.menu_loop, 2
+      Gamestate.switch game_states.game
+
+game_states.menu.draw = ->
+  scale = love.window.getPixelScale!
+  love.graphics.scale scale
+
+  width = love.graphics.getWidth! / scale
+  height = love.graphics.getHeight! / scale
+
+  love.graphics.setColor 255, 255, 255
+
+  love.graphics.draw GFX.title_screen, 0.5 * (width - 600), 80
+
+  love.graphics.setFont FONTS.sub
+  love.graphics.printf credits, 0.5 * (width - 500), 350, 500, "left"
+  love.graphics.printf "[press space to play]", 0, height - 100, width, "center"
 
 game_states.game.enter = ->
   state =
