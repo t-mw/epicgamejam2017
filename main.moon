@@ -95,8 +95,8 @@ new_image_no_filter = (path) ->
 start_loop = (audio, fade_in_time, delay = 0) ->
   with audio
     \setLooping true
-    \play!
     \setVolume 0
+    \play!
     Timer.script (wait) ->
       t = 0
       wait delay
@@ -104,6 +104,16 @@ start_loop = (audio, fade_in_time, delay = 0) ->
         t += dt
         volume = t / fade_in_time
         \setVolume volume * volume
+
+stop_loop = (audio, fade_out_time) ->
+  t = 0
+
+  fade_out = (dt) ->
+    t += dt
+    volume = 1 - t / fade_out_time
+    audio\setVolume volume * volume
+
+  Timer.during fade_out_time, fade_out, () -> audio\stop!
 
 filled_array = (size, val = 0) ->
   result = {}
@@ -799,7 +809,6 @@ draw_tile = (idx, tile) ->
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
 
 game_states.game.enter = ->
-
   state =
     map_start_time: 0
     map: {}
@@ -891,11 +900,7 @@ game_states.game.update = (self, dt) ->
       -- fade out audio and screen, before switching to score screen
       after = () -> Gamestate.switch game_states.score
 
-      t = 0
-      Timer.during 2, (dt) ->
-        t += dt
-        volume = 1 - t / 2
-        AUDIO.play_theme_loop\setVolume volume * volume
+      stop_loop AUDIO.play_theme_loop, 2
       Timer.tween 2, gfx, {fade_out_opacity: 1}, "linear", after
 
   Timer.update dt
@@ -1081,7 +1086,8 @@ game_states.game.draw = ->
   love.graphics.rectangle "fill", 0, 0, width, height
 
 game_states.score.enter = ->
-  start_loop AUDIO.we_will_win_loop, 2
+  love.audio.stop!
+  start_loop AUDIO.we_will_win_loop, 1, 1
 
 game_states.score.update = (self, dt) ->
   Timer.update dt
@@ -1089,6 +1095,7 @@ game_states.score.update = (self, dt) ->
 game_states.score.keypressed = (self, key) ->
   switch key
     when "space"
+      stop_loop AUDIO.we_will_win_loop, 2
       Gamestate.switch game_states.game
 
 game_states.score.draw = ->
