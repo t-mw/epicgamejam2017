@@ -1,2 +1,2 @@
 make
-love ./build
+love --console ./build

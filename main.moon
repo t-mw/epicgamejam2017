@@ -524,7 +524,7 @@ update_agent_destination = (a, map, blockers, time) ->
 
     a.blocked = true
     -- add delay to avoid agents getting stuck
-    Timer.after 0.05, () -> a.blocked = false
+    Timer.after 0.15, () -> a.blocked = false
 
     return
 
