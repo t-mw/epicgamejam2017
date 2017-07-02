@@ -958,21 +958,21 @@ game_states.game.update = (self, dt) ->
   Timer.update dt
 
 game_states.game.keypressed = (self, key) ->
-  agents = filter_active_agents state.agents
-
-  hover_agent = find_agent state.select_agent_id, agents
+  change_state = nil
 
   switch key
     when "f1"
       state.show_help = not state.show_help
-    when "-"
-      state.win_conditions = calculate_win_conditions state.agents, state.map
+    when "f2"
+      go_to_state_from_game game_states.menu
 
-      -- fade out audio and screen, before switching to score screen
-      after = () -> Gamestate.switch game_states.score
+go_to_state_from_game = (state) ->
 
-      stop_loop AUDIO.play_theme_loop, 2
-      Timer.tween 2, gfx, {fade_out_opacity: 1}, "linear", after
+  -- fade out audio and screen, before switching to score screen
+  after = () -> Gamestate.switch state
+
+  stop_loop AUDIO.play_theme_loop, 2
+  Timer.tween 2, gfx, {fade_out_opacity: 1}, "linear", after
 
 game_states.game.mousepressed = (self, x, y, button) ->
 
@@ -1171,7 +1171,7 @@ choose your blocks wisely, they will stay that way!"
   else
     love.graphics.setColor 255, 255, 255
     love.graphics.setFont FONTS.sub
-    love.graphics.printf "[f1 - help]", width - 150, 10, 150
+    love.graphics.printf "[f1 - help / f2 - menu]", width - 300, 10, 300
 
   love.graphics.setColor 0, 0, 0, gfx.fade_out_opacity * 255
   love.graphics.rectangle "fill", 0, 0, width, height
