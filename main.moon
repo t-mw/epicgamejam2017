@@ -208,6 +208,7 @@ add_agent = (agents) ->
     position: vector(0, 0),
     job: nil
     dig_tile_indices: {}
+    digging_since: 0
     blocking_time: BLOCKING_TIME
     blocked: false
   }
@@ -538,7 +539,7 @@ find_agent = (id, agents) ->
   lume.match agents, (a) -> a.id == id
 
 
-draw_agent = (a, x, y) ->
+draw_agent = (a, x, y, time) ->
   {:source, :destination} = a
 
   x_source, y_source = from_1d_to_2d_idx source, MAP_SIZE
@@ -560,7 +561,21 @@ draw_agent = (a, x, y) ->
   FEET_OFFSET = 15
   y = lume.round y - TILE_SIZE + FEET_OFFSET
 
-  love.graphics.draw sprite, x, y, 0, scale_x * TILE_SCALE, TILE_SCALE
+
+  dy = if a.job == "dig"
+    digging_since = time - a.digging_since
+
+    BOUNCE_DURATION = 0.1
+    BOUNCE_HEIGHT = 2
+
+    bounce = 2 * ((digging_since / BOUNCE_DURATION) % 1)
+    bounce = 2 - bounce if bounce > 1
+
+    bounce * BOUNCE_HEIGHT
+  else
+    0
+
+  love.graphics.draw sprite, x, y + dy, 0, scale_x * TILE_SCALE, TILE_SCALE
 
 draw_tile_path = (tile, x, y, x0, y0) ->
   x1 = TILE_SIZE * x
@@ -843,8 +858,9 @@ love.mousereleased = (x, y, button) ->
     dig_tile_indices = calculate_dig_tile_indices source_x, source_y, target_x, target_y, state.map
 
     if #dig_tile_indices > 0
-      dig_agent.dig_tile_indices = dig_tile_indices
       dig_agent.job = "dig"
+      dig_agent.dig_tile_indices = dig_tile_indices
+      dig_agent.digging_since = get_time!
 
   state.dig_agent_id = nil
 
@@ -880,8 +896,7 @@ love.draw = ->
       {255 * duration, 255 * duration, 255 * duration}
 
     love.graphics.setColor color
-    draw_agent a, x, y
-
+    draw_agent a, x, y, time
 
   if dig_agent = find_agent state.dig_agent_id, agents
     mouse_world_x, mouse_world_y = project_to_world mouse_x, mouse_y
