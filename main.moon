@@ -996,7 +996,7 @@ game_states.game.mousepressed = (self, x, y, button) ->
 
   agents = filter_active_agents state.agents
   select_agent = find_agent_at x, y, agents
-  state.select_agent_id = select_agent and select_agent.id or nil
+  state.select_agent_id = select_agent.id if select_agent and not select_agent.job
 
 game_states.game.mousemoved = (self, x, y, dx, dy) ->
 
