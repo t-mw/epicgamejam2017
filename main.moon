@@ -854,9 +854,9 @@ game_states.game.enter = ->
     map_start_time: 0
     map: {}
     tiles: {}
-    gfx: {}
     agents: {}
     hover_agent_id: nil
+    select_agent_id: nil
     dig_agent_id: nil
     active_job: nil
     infection_timer: INFECTION_TIMER_START
@@ -963,10 +963,6 @@ game_states.game.keypressed = (self, key) ->
   hover_agent = find_agent state.select_agent_id, agents
 
   switch key
-    when "1"
-      state.active_job = "block"
-    when "2"
-      state.active_job = "dig"
     when "f1"
       state.show_help = not state.show_help
     when "-"
@@ -979,32 +975,39 @@ game_states.game.keypressed = (self, key) ->
       Timer.tween 2, gfx, {fade_out_opacity: 1}, "linear", after
 
 game_states.game.mousepressed = (self, x, y, button) ->
-  agents = filter_active_agents state.agents
 
-  if button != 1
-    return
+  return if button != 1
+
+  state.active_job = "block"
+  state.select_agent_id = nil
+  state.dig_agent_id = nil
 
   x, y = project_to_world x, y
-  active_job = state.active_job
 
-  if active_job
-    select_agent = find_agent_at x, y, agents
+  agents = filter_active_agents state.agents
+  select_agent = find_agent_at x, y, agents
+  state.select_agent_id = select_agent and select_agent.id or nil
 
-    if select_agent and not select_agent.job
-      if active_job == "dig"
-        state.dig_agent_id = select_agent.id
-      else
-        select_agent.job = active_job if not select_agent.job
+game_states.game.mousemoved = (self, x, y, dx, dy) ->
+
+  if select_agent = find_agent state.select_agent_id, state.agents
+    x, y = project_to_world x, y
+
+    dist2 = (vector(x, y) - select_agent.position)\len2!
+
+    if dist2 > 30 * 30
+      state.active_job = "dig"
+      state.dig_agent_id = state.select_agent_id
 
 game_states.game.mousereleased = (self, x, y, button) ->
-  if button != 1
-    return
+
+  return if button != 1
 
   {:agents, :map} = state
 
-  if dig_agent = find_agent state.dig_agent_id, agents
-    x, y = project_to_world x, y
+  x, y = project_to_world x, y
 
+  if dig_agent = find_agent state.dig_agent_id, agents
     source_x, source_y = world_pos_to_tile_pos dig_agent.position
     target_x, target_y = world_pos_to_tile_pos vector(x, y)
 
@@ -1015,6 +1018,11 @@ game_states.game.mousereleased = (self, x, y, button) ->
       dig_agent.dig_tile_indices = dig_tile_indices
       dig_agent.digging_since = get_time!
 
+  elseif select_agent = find_agent state.select_agent_id, agents
+    select_agent.job = state.active_job
+
+  state.active_job = nil
+  state.select_agent_id = nil
   state.dig_agent_id = nil
 
 game_states.game.draw = ->
@@ -1164,7 +1172,6 @@ choose your blocks wisely, they will stay that way!"
     love.graphics.setColor 255, 255, 255
     love.graphics.setFont FONTS.sub
     love.graphics.printf "[f1 - help]", width - 150, 10, 150
-
 
   love.graphics.setColor 0, 0, 0, gfx.fade_out_opacity * 255
   love.graphics.rectangle "fill", 0, 0, width, height
