@@ -22,11 +22,11 @@ GFX = {}
 FONTS = {}
 
 AUDIO =
-  infection: love.audio.newSource "music/infection.wav", "static"
-  infection_complete: love.audio.newSource "music/InfectionComplete.wav", "static"
-  heal: love.audio.newSource "music/Heal.wav", "static"
-  play_theme_loop: love.audio.newSource "music/playthemeLoopFull.wav"
-  we_will_win_loop: love.audio.newSource "music/WeWillWinEpicLoop.wav"
+  infection: love.audio.newSource "music/infection.ogg", "static"
+  infection_complete: love.audio.newSource "music/InfectionComplete.ogg", "static"
+  heal: love.audio.newSource "music/Heal.ogg", "static"
+  play_theme_loop: love.audio.newSource "music/playthemeLoopFull.ogg"
+  we_will_win_loop: love.audio.newSource "music/WeWillWinEpicLoop.ogg"
 
 JOB =
   block: "block"
