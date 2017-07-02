@@ -106,7 +106,7 @@ start_loop = (audio, fade_in_time, delay = 0) ->
       wait delay
       Timer.during fade_in_time, (dt) ->
         t += dt
-        volume = t / fade_in_time
+        volume = math.min t / fade_in_time, 1
         \setVolume volume * volume
 
 stop_loop = (audio, fade_out_time) ->
