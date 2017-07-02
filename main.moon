@@ -526,7 +526,7 @@ draw_tile_path = (tile, x, y, x0, y0) ->
 
   elseif sum == 3
     path_idx = 3
-    if not tile.east  
+    if not tile.east
       angle = 0
     else if not tile.south
       angle = 90
@@ -547,24 +547,24 @@ draw_tile_path = (tile, x, y, x0, y0) ->
       angle = 90
       x_off = TILE_SIZE
     else if tile.east and tile.south
-      path_idx = 1 
+      path_idx = 1
     else if tile.south and tile.west
-      path_idx = 1 
+      path_idx = 1
       angle = 90
       x_off = TILE_SIZE
     else if tile.west and tile.north
-      path_idx = 1 
+      path_idx = 1
       angle = 180
       x_off = TILE_SIZE
       y_off = TILE_SIZE
     else if tile.north and tile.east
-      path_idx = 1 
+      path_idx = 1
       angle = 270
       y_off = TILE_SIZE
       --x_off = TILE_SIZE
 
   else if sum == 1
-    path_idx = 4 
+    path_idx = 4
     if tile.north
       angle = 0
     else if tile.east
@@ -577,7 +577,7 @@ draw_tile_path = (tile, x, y, x0, y0) ->
     else if tile.west
       angle = 270
       y_off = TILE_SIZE
-    
+
 
   --  ii = math.floor(math.random! * 4)
 
@@ -627,7 +627,7 @@ draw_tile = (idx, tile) ->
   --love.graphics.setColor 0, 0, 0
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
 
-  
+
 love.load = ->
   love.window.setMode 800, 600, highdpi: true
 
@@ -641,7 +641,7 @@ love.load = ->
   -- load tile images
   --  grass
   state.gfx.grass = love.graphics.newImage("graphics/grass.png")
-  
+
   --  village houses
   h = love.graphics.newImage("graphics/houses.png")
   h\setFilter("nearest", "nearest")
@@ -705,11 +705,6 @@ love.update = (dt) ->
     update_agent_destination a, state.map, blockers, time
 
     apply_healing a, pre_move, state.map
-
-  for a in *blockers
-    a.blocking_time -= dt
-    if a.blocking_time < 0
-      deactivate_agent a, time
 
   x, y =  love.mouse.getPosition!
   x, y = project_to_world x, y
