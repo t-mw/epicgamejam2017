@@ -24,6 +24,8 @@ FONTS = {}
 AUDIO =
   infection: love.audio.newSource "music/infection.ogg", "static"
   infection_complete: love.audio.newSource "music/InfectionComplete.ogg", "static"
+  menu_loop: love.audio.newSource "music/MenuLoop.ogg"
+  raven: love.audio.newSource "music/Raven.ogg", "static"
   heal: love.audio.newSource "music/Heal.ogg", "static"
   play_theme_loop: love.audio.newSource "music/playthemeLoopFull.ogg"
   we_will_win_loop: love.audio.newSource "music/WeWillWinEpicLoop.ogg"
@@ -39,6 +41,7 @@ state = nil
 gfx = nil
 
 export game_states = {
+  menu: {}
   game: {}
   score: {}
 }
@@ -81,12 +84,13 @@ love.load = ->
   GFX.doctorfront = new_image_no_filter "graphics/doctorfront.png"
 
   GFX.glow = new_image_no_filter "graphics/glow.png"
+  GFX.title_screen = new_image_no_filter "graphics/titlescreen.png"
 
   FONTS.main = love.graphics.newFont "fonts/main.ttf", 50
   FONTS.sub = love.graphics.newFont "fonts/main.ttf", 30
 
   Gamestate.registerEvents!
-  Gamestate.switch game_states.game
+  Gamestate.switch game_states.menu
 
 new_image_no_filter = (path) ->
   with love.graphics.newImage path
@@ -102,7 +106,7 @@ start_loop = (audio, fade_in_time, delay = 0) ->
       wait delay
       Timer.during fade_in_time, (dt) ->
         t += dt
-        volume = t / fade_in_time
+        volume = math.min t / fade_in_time, 1
         \setVolume volume * volume
 
 stop_loop = (audio, fade_out_time) ->
@@ -135,7 +139,7 @@ is_infection_critical = (level) ->
 
 map_tile = (i) ->
   -- village/houses
-  has_village = math.random! < 0.1
+  has_village = math.random! < 0.05
 
   --  type of village
   village_idx = -1
@@ -289,12 +293,12 @@ generate_map_routes = (start_x, start_y, map) ->
     clear_map map
 
     visited = {}
-    generate_map_route start_idx, 20, 2, visited, map
+    generate_map_route start_idx, 10, 2, visited, map
 
     -- avoid lume.count treating visited as array
     visited[1] = nil
 
-    if lume.count(visited) + 1 > 40
+    if lume.count(visited) + 1 > 30
       break
 
 add_agent = (agents) ->
@@ -808,19 +812,57 @@ draw_tile = (idx, tile) ->
   --love.graphics.setColor 0, 0, 0
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
 
+credits = ""
+
+game_states.menu.enter = ->
+  start_loop AUDIO.menu_loop, 2
+
+  credits = {
+    "programming - Tobias Mansfield-Williams",
+    "programming/art - Mike Vasiljevs",
+    "sound/music/art - Lukas Fretz"
+  }
+
+  credits = table.concat lume.shuffle(credits), "\n"
+
+game_states.menu.update = (self, dt) ->
+  Timer.update dt
+
+game_states.menu.keypressed = (self, key) ->
+  switch key
+    when "space"
+      stop_loop AUDIO.menu_loop, 2
+      Gamestate.switch game_states.game
+
+game_states.menu.draw = ->
+  scale = love.window.getPixelScale!
+  love.graphics.scale scale
+
+  width = love.graphics.getWidth! / scale
+  height = love.graphics.getHeight! / scale
+
+  love.graphics.setColor 255, 255, 255
+
+  love.graphics.draw GFX.title_screen, 0.5 * (width - 600), 80
+
+  love.graphics.setFont FONTS.sub
+  love.graphics.printf credits, 0.5 * (width - 500), 350, 500, "left"
+  love.graphics.printf "[press space to play]", 0, height - 100, width, "center"
+
 game_states.game.enter = ->
   state =
     map_start_time: 0
     map: {}
     tiles: {}
-    gfx: {}
     agents: {}
     hover_agent_id: nil
+    select_agent_id: nil
     dig_agent_id: nil
     active_job: nil
     infection_timer: INFECTION_TIMER_START
     infection_timer_max: INFECTION_TIMER_START
     win_conditions: nil
+    show_help: false
 
   gfx =
     glows: {}
@@ -842,7 +884,17 @@ game_states.game.enter = ->
 
   start_loop AUDIO.play_theme_loop, 2, 1
 
+  Timer.script (wait) ->
+    AUDIO.raven\setVolume 0.05
+    while true
+      wait lume.random(30, 60)
+      AUDIO.raven\play!
+
 game_states.game.update = (self, dt) ->
+
+  if state.show_help
+    return
+
   time = get_time!
 
   agents = filter_active_agents state.agents
@@ -906,53 +958,56 @@ game_states.game.update = (self, dt) ->
   Timer.update dt
 
 game_states.game.keypressed = (self, key) ->
-  agents = filter_active_agents state.agents
-
-  hover_agent = find_agent state.select_agent_id, agents
+  change_state = nil
 
   switch key
-    when "1"
-      state.active_job = "block"
-    when "2"
-      state.active_job = "dig"
-    when "3"
-      state.active_job = "rotate"
-    when "-"
-      state.win_conditions = calculate_win_conditions state.agents, state.map
+    when "f1"
+      state.show_help = not state.show_help
+    when "f2"
+      go_to_state_from_game game_states.menu
 
-      -- fade out audio and screen, before switching to score screen
-      after = () -> Gamestate.switch game_states.score
+go_to_state_from_game = (state) ->
 
-      stop_loop AUDIO.play_theme_loop, 2
-      Timer.tween 2, gfx, {fade_out_opacity: 1}, "linear", after
+  -- fade out audio and screen, before switching to score screen
+  after = () -> Gamestate.switch state
+
+  stop_loop AUDIO.play_theme_loop, 2
+  Timer.tween 2, gfx, {fade_out_opacity: 1}, "linear", after
 
 game_states.game.mousepressed = (self, x, y, button) ->
-  agents = filter_active_agents state.agents
 
-  if button != 1
-    return
+  return if button != 1
+
+  state.active_job = "block"
+  state.select_agent_id = nil
+  state.dig_agent_id = nil
 
   x, y = project_to_world x, y
-  active_job = state.active_job
 
-  if active_job
-    select_agent = find_agent_at x, y, agents
+  agents = filter_active_agents state.agents
+  select_agent = find_agent_at x, y, agents
+  state.select_agent_id = select_agent and select_agent.id or nil
 
-    if select_agent and not select_agent.job
-      if active_job == "dig"
-        state.dig_agent_id = select_agent.id
-      else
-        select_agent.job = active_job if not select_agent.job
+game_states.game.mousemoved = (self, x, y, dx, dy) ->
+
+  if select_agent = find_agent state.select_agent_id, state.agents
+    x, y = project_to_world x, y
+
+    dist2 = (vector(x, y) - select_agent.position)\len2!
+
+    if dist2 > 30 * 30
+      state.active_job = "dig"
+      state.dig_agent_id = state.select_agent_id
 
 game_states.game.mousereleased = (self, x, y, button) ->
-  if button != 1
-    return
+
+  return if button != 1
 
   {:agents, :map} = state
 
-  if dig_agent = find_agent state.dig_agent_id, agents
-    x, y = project_to_world x, y
+  x, y = project_to_world x, y
 
+  if dig_agent = find_agent state.dig_agent_id, agents
     source_x, source_y = world_pos_to_tile_pos dig_agent.position
     target_x, target_y = world_pos_to_tile_pos vector(x, y)
 
@@ -963,6 +1018,11 @@ game_states.game.mousereleased = (self, x, y, button) ->
       dig_agent.dig_tile_indices = dig_tile_indices
       dig_agent.digging_since = get_time!
 
+  elseif select_agent = find_agent state.select_agent_id, agents
+    select_agent.job = state.active_job
+
+  state.active_job = nil
+  state.select_agent_id = nil
   state.dig_agent_id = nil
 
 game_states.game.draw = ->
@@ -1090,11 +1150,35 @@ game_states.game.draw = ->
   love.graphics.rectangle "fill", 0, 0, bar_width * (state.infection_timer_max - state.infection_timer) / state.infection_timer_max, 20
   love.graphics.pop!
 
+  if state.show_help
+    love.graphics.setColor 0, 0, 0
+    love.graphics.rectangle "fill", 90, 90, width - 2 * 90, height - 2 * 90
+
+    love.graphics.setColor 255, 255, 255
+    love.graphics.rectangle "line", 90, 90, width - 2 * 90, height - 2 * 90
+
+    msg = "heal the infected by leading the doctors to the villages in time
+
+press 1 to activate the blocking mode to block a path/ cost: the doctor you used
+press 2 to activate pathcreator mode to create missing paths/ cost: the doctor you used
+
+you have a limited amount of doctors for your mission!
+choose your blocks wisely, they will stay that way!"
+
+    love.graphics.setFont FONTS.sub
+    love.graphics.printf msg, 100, 100, width - 2 * 100
+
+  else
+    love.graphics.setColor 255, 255, 255
+    love.graphics.setFont FONTS.sub
+    love.graphics.printf "[f1 - help / f2 - menu]", width - 300, 10, 300
+
   love.graphics.setColor 0, 0, 0, gfx.fade_out_opacity * 255
   love.graphics.rectangle "fill", 0, 0, width, height
 
 game_states.score.enter = ->
   love.audio.stop!
+  Timer.clear!
   start_loop AUDIO.we_will_win_loop, 1, 1
 
 game_states.score.update = (self, dt) ->
