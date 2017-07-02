@@ -24,6 +24,7 @@ FONTS = {}
 AUDIO =
   infection: love.audio.newSource "music/infection.ogg", "static"
   infection_complete: love.audio.newSource "music/InfectionComplete.ogg", "static"
+  raven: love.audio.newSource "music/Raven.ogg", "static"
   heal: love.audio.newSource "music/Heal.ogg", "static"
   play_theme_loop: love.audio.newSource "music/playthemeLoopFull.ogg"
   we_will_win_loop: love.audio.newSource "music/WeWillWinEpicLoop.ogg"
@@ -841,6 +842,12 @@ game_states.game.enter = ->
     count < MAX_COUNT
 
   start_loop AUDIO.play_theme_loop, 2, 1
+
+  Timer.script (wait) ->
+    AUDIO.raven\setVolume 0.05
+    while true
+      wait lume.random(30, 60)
+      AUDIO.raven\play!
 
 game_states.game.update = (self, dt) ->
   time = get_time!
