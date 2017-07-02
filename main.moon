@@ -777,6 +777,9 @@ draw_tile_path = (tile, x, y, x0, y0) ->
   --love.graphics.line x1, y1, x1, y2 if tile.south
   --love.graphics.line x1, y1, x2, y1 if tile.east
 
+mix = (a, b, t) ->
+  return a*(1-t) + b*t
+
 draw_tile = (idx, tile) ->
   x, y = from_1d_to_2d_idx idx, MAP_SIZE
 
@@ -797,18 +800,20 @@ draw_tile = (idx, tile) ->
   draw_tile_path(tile, x, y, x0, y0)
 
   if tile.has_village
+    --draw village (one of the houses) graphics
+    love.graphics.setColor 180, 180, 200
+    love.graphics.draw(GFX.houses_image, GFX.houses_qs[tile.village_idx], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
+
     l = gfx.infection_level[idx].v
     frac = l / INFECTION_CRITICAL
 
     love.graphics.setColor 100, 100, 100
     --love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
 
-    love.graphics.setColor 50 + l, 50, 50
-    love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
-
-    --draw village (one of the houses) graphics
-    love.graphics.setColor 180, 180, 200
-    love.graphics.draw(GFX.houses_image, GFX.houses_qs[tile.village_idx], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
+    love.graphics.setColor 255, mix(96, 0, frac), mix(0, 125, frac), mix(30, 150, frac)
+    --love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
+    mid = TILE_SIZE * 0.5
+    love.graphics.circle "fill", x0 + mid, y0 + mid, mix(0.2, 1, frac) * mid
 
   --love.graphics.setColor 0, 0, 0
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
