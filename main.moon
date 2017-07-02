@@ -862,6 +862,7 @@ game_states.game.enter = ->
     infection_timer: INFECTION_TIMER_START
     infection_timer_max: INFECTION_TIMER_START
     win_conditions: nil
+    show_help: false
 
   gfx =
     glows: {}
@@ -962,8 +963,8 @@ game_states.game.keypressed = (self, key) ->
       state.active_job = "block"
     when "2"
       state.active_job = "dig"
-    when "3"
-      state.active_job = "rotate"
+    when "f1"
+      state.show_help = not state.show_help
     when "-"
       state.win_conditions = calculate_win_conditions state.agents, state.map
 
@@ -1136,6 +1137,9 @@ game_states.game.draw = ->
   love.graphics.setColor 255, 0, 0
   love.graphics.rectangle "fill", 0, 0, bar_width * (state.infection_timer_max - state.infection_timer) / state.infection_timer_max, 20
   love.graphics.pop!
+
+  if state.show_help
+    love.graphics.rectangle "fill", 40, 40, width - 2 * 40, height - 2 * 40
 
   love.graphics.setColor 0, 0, 0, gfx.fade_out_opacity * 255
   love.graphics.rectangle "fill", 0, 0, width, height
