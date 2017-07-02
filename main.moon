@@ -114,7 +114,7 @@ map_tile = (i) ->
   x, y = from_1d_to_2d_idx i, MAP_SIZE
   max_rate = math.max MAP_SIZE - x, MAP_SIZE - y
 
-  infection_rate = has_village and lume.round(math.random! * max_rate) or 0
+  infection_rate = has_village and lume.round(lume.random 10, max_rate) or 0
 
   {
     idx: i
