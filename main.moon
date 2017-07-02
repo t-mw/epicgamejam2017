@@ -789,7 +789,7 @@ draw_tile = (idx, tile) ->
   x0, y0 = project_to_screen x0, y0
 
 
-  love.graphics.setColor 50, 100 + ((idx * 124290) % 100), 50
+  love.graphics.setColor 255, 200 - (y - 1) * 10, 255
   love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
 
   --draw grass graphics
