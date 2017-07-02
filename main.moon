@@ -48,6 +48,9 @@ love.load = ->
 
   math.randomseed os.time!
 
+  GFX.text_lose = new_image_no_filter "graphics/text-loose1.png"
+  GFX.text_win = new_image_no_filter "graphics/text-youwin2.png"
+
   -- load tile images
   --  grass
   GFX.grass = new_image_no_filter "graphics/grass.png"
@@ -1106,11 +1109,14 @@ game_states.score.draw = ->
   percent = lume.round (clear_count / all_count) * 100
   seconds = lume.round time
 
+  love.graphics.setColor 255, 255, 255
+
+  image = if percent == 100 then GFX.text_win else GFX.text_lose
+  love.graphics.draw image, 0.5 * (width - 200), 100
+
   msg = "#{percent}% saved
 #{used_count} doctors used
 #{seconds} seconds"
-
-  love.graphics.setColor 255, 255, 255
 
   love.graphics.setFont FONTS.main
   love.graphics.printf msg, 0, 200, width, "center"
