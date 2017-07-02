@@ -14,12 +14,14 @@ INFECTION_TIMER_DECAY = 0.8
 INFECTION_TIMER_MIN = 5
 BLOCKING_TIME = 3
 NUM_VILLAGE_TYPES = 3
+INFECTION_CRITICAL = 100
 
 TILE_SCALE = 48 / 32
 
 GFX = {}
 
 AUDIO =
+  infection: love.audio.newSource "music/infection.wav", "static"
   infection_complete: love.audio.newSource "music/InfectionComplete.wav", "static"
   heal: love.audio.newSource "music/Heal.wav", "static"
   play_theme_loop: love.audio.newSource "music/playthemeLoopFull.wav"
@@ -98,7 +100,7 @@ get_time = ->
   love.timer.getTime! - state.map_start_time
 
 is_infection_critical = (level) ->
-  level == 100
+  level >= INFECTION_CRITICAL
 
 map_tile = (i) ->
   -- village/houses
@@ -761,7 +763,7 @@ draw_tile = (idx, tile) ->
 
   if tile.has_village
     l = gfx.infection_level[idx].v
-    frac = l / 100
+    frac = l / INFECTION_CRITICAL
 
     love.graphics.setColor 100, 100, 100
     --love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
@@ -846,20 +848,27 @@ game_states.game.update = (self, dt) ->
   state.infection_timer -= dt
 
   if state.infection_timer < 0
-    AUDIO.infection_complete\play!
 
     state.infection_timer_max = math.max state.infection_timer_max *
       INFECTION_TIMER_DECAY, INFECTION_TIMER_MIN
 
     state.infection_timer = state.infection_timer_max
 
+    any_critical = false
+
     for t in *state.map
       if t.infection_level > 0
         infection_level1 = t.infection_level
-        infection_level2 = math.min infection_level1 + t.infection_rate, 100
+        infection_level2 = math.min infection_level1 + t.infection_rate, INFECTION_CRITICAL
 
         if infection_level2 != infection_level1
           set_infection_level t, infection_level2
+          any_critical = any_critical or is_infection_critical infection_level2
+
+    if any_critical
+      AUDIO.infection_complete\play!
+    else
+      AUDIO.infection\play!
 
   if not state.win_conditions
     win_conditions = calculate_win_conditions state.agents, state.map
