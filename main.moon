@@ -917,6 +917,14 @@ game_states.game.keypressed = (self, key) ->
       state.active_job = "dig"
     when "3"
       state.active_job = "rotate"
+    when "-"
+      state.win_conditions = calculate_win_conditions state.agents, state.map
+
+      -- fade out audio and screen, before switching to score screen
+      after = () -> Gamestate.switch game_states.score
+
+      stop_loop AUDIO.play_theme_loop, 2
+      Timer.tween 2, gfx, {fade_out_opacity: 1}, "linear", after
 
 game_states.game.mousepressed = (self, x, y, button) ->
   agents = filter_active_agents state.agents
