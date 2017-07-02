@@ -810,10 +810,11 @@ draw_tile = (idx, tile) ->
     love.graphics.setColor 100, 100, 100
     --love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
 
-    love.graphics.setColor 255, mix(96, 0, frac), mix(0, 125, frac), mix(30, 150, frac)
-    --love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
-    mid = TILE_SIZE * 0.5
-    love.graphics.circle "fill", x0 + mid, y0 + mid, mix(0.2, 1, frac) * mid
+    if frac > 0.1
+      love.graphics.setColor 255, mix(96, 0, frac), mix(0, 125, frac), mix(30, 150, frac)
+      --love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
+      mid = TILE_SIZE * 0.5
+      love.graphics.circle "fill", x0 + mid, y0 + mid, mix(0.2, 1, frac) * mid
 
   --love.graphics.setColor 0, 0, 0
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
