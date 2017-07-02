@@ -160,7 +160,7 @@ map_tile = (i) ->
     east: false
     :has_village
     :village_idx
-    infection_level: infection_rate
+    infection_level: infection_rate * 2
     :infection_rate
   }
 
