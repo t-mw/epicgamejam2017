@@ -807,6 +807,7 @@ draw_tile = (idx, tile) ->
     love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
 
     --draw village (one of the houses) graphics
+    love.graphics.setColor 180, 180, 200
     love.graphics.draw(GFX.houses_image, GFX.houses_qs[tile.village_idx], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
   --love.graphics.setColor 0, 0, 0
