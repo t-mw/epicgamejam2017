@@ -890,17 +890,39 @@ love.draw = ->
     target_x, target_y = world_pos_to_tile_pos vector(mouse_world_x, mouse_world_y)
 
     dig_tile_indices = calculate_dig_tile_indices source_x, source_y, target_x, target_y, state.map
+    valid = #dig_tile_indices > 0
 
-    if #dig_tile_indices > 0
-      {x: x1, y: y1} = dig_agent.position
-      x1, y1 = project_to_screen x1, y1
+    x1, y1, x2, y2 = unless valid
+      v1 = dig_agent.position
+
+      v1.x, v1.y, mouse_world_x, mouse_world_y
+    else
+      v1 = tile_pos_to_world_pos source_x, source_y
 
       last_idx = lume.last dig_tile_indices
       x2, y2 = from_1d_to_2d_idx last_idx, MAP_SIZE
-      v = tile_pos_to_world_pos x2, y2
-      x2, y2 = project_to_screen v.x, v.y
+      v2 = tile_pos_to_world_pos x2, y2
 
-      love.graphics.line x1, y1, x2, y2
+      v1.x, v1.y, v2.x, v2.y
+
+    x1, y1 = project_to_screen x1, y1
+    x2, y2 = project_to_screen x2, y2
+
+    STEP_SIZE = 10
+
+    src = vector(x1, y1)
+    dest = vector(x2, y2)
+    diff = dest - src
+    len = diff\len!
+    norm = diff / len
+    steps = len / STEP_SIZE
+
+    color = valid and {100, 255, 100} or {255, 100, 100}
+    love.graphics.setColor color
+
+    for i = 1, steps + 1
+      draw = src + norm * (i - 1) * STEP_SIZE
+      love.graphics.rectangle "fill", draw.x - 1, draw.y - 1, 2, 2
 
   inactive_agents = filter_inactive_agents state.agents
 
