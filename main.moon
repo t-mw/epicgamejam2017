@@ -19,12 +19,14 @@ INFECTION_CRITICAL = 100
 TILE_SCALE = 48 / 32
 
 GFX = {}
+FONTS = {}
 
 AUDIO =
   infection: love.audio.newSource "music/infection.wav", "static"
   infection_complete: love.audio.newSource "music/InfectionComplete.wav", "static"
   heal: love.audio.newSource "music/Heal.wav", "static"
   play_theme_loop: love.audio.newSource "music/playthemeLoopFull.wav"
+  we_will_win_loop: love.audio.newSource "music/WeWillWinEpicLoop.wav"
 
 JOB =
   block: "block"
@@ -38,7 +40,7 @@ gfx = nil
 
 export game_states = {
   game: {}
-  win: {}
+  score: {}
 }
 
 love.load = ->
@@ -77,12 +79,28 @@ love.load = ->
 
   GFX.glow = new_image_no_filter "graphics/glow.png"
 
+  FONTS.main = love.graphics.newFont "fonts/main.ttf", 50
+  FONTS.sub = love.graphics.newFont "fonts/main.ttf", 30
+
   Gamestate.registerEvents!
   Gamestate.switch game_states.game
 
 new_image_no_filter = (path) ->
   with love.graphics.newImage path
     \setFilter "nearest", "nearest"
+
+start_loop = (audio, fade_in_time, delay = 0) ->
+  with audio
+    \setLooping true
+    \play!
+    \setVolume 0
+    Timer.script (wait) ->
+      t = 0
+      wait delay
+      Timer.during fade_in_time, (dt) ->
+        t += dt
+        volume = t / fade_in_time
+        \setVolume volume * volume
 
 filled_array = (size, val = 0) ->
   result = {}
@@ -795,6 +813,7 @@ game_states.game.enter = ->
   gfx =
     glows: {}
     infection_level: {}
+    fade_out_opacity: 0
 
   state.map_start_time = love.timer.getTime!
   state.map = generate_map MAP_SIZE
@@ -809,17 +828,7 @@ game_states.game.enter = ->
     count += 1
     count < MAX_COUNT
 
-  with AUDIO.play_theme_loop
-    \setLooping true
-    \play!
-    \setVolume 0
-    Timer.script (wait) ->
-      t = 0
-      wait 1
-      Timer.during 2, (dt) ->
-        t += dt
-        volume = t / 2
-        \setVolume volume * volume
+  start_loop AUDIO.play_theme_loop, 2, 1
 
 game_states.game.update = (self, dt) ->
   time = get_time!
@@ -876,9 +885,17 @@ game_states.game.update = (self, dt) ->
     if are_win_conditions_complete win_conditions
       state.win_conditions = win_conditions
 
-      Gamestate.switch game_states.win
+      -- fade out audio and screen, before switching to score screen
+      after = () -> Gamestate.switch game_states.score
 
-  Timer.update(dt)
+      t = 0
+      Timer.during 2, (dt) ->
+        t += dt
+        volume = 1 - t / 2
+        AUDIO.play_theme_loop\setVolume volume * volume
+      Timer.tween 2, gfx, {fade_out_opacity: 1}, "linear", after
+
+  Timer.update dt
 
 game_states.game.keypressed = (self, key) ->
   agents = filter_active_agents state.agents
@@ -933,6 +950,9 @@ game_states.game.mousereleased = (self, x, y, button) ->
   state.dig_agent_id = nil
 
 game_states.game.draw = ->
+  scale = love.window.getPixelScale!
+  love.graphics.scale scale
+
   time = get_time!
 
   mouse_x, mouse_y = love.mouse.getPosition!
@@ -941,9 +961,6 @@ game_states.game.draw = ->
 
   -- sort by depth
   table.sort agents, (a, b) -> a.position.y < b.position.y
-
-  scale = love.window.getPixelScale!
-  love.graphics.scale scale
 
   width = love.graphics.getWidth! / scale
   height = love.graphics.getHeight! / scale
@@ -1049,11 +1066,54 @@ game_states.game.draw = ->
       love.graphics.draw(GFX.glow, x, y, e, TILE_SCALE, TILE_SCALE, 0.5 * TILE_SIZE / TILE_SCALE, 0.5 * TILE_SIZE / TILE_SCALE)
 
   bar_width = 500
+  love.graphics.push!
   love.graphics.translate 0.5 * (width - bar_width), height - 40
   love.graphics.setColor 50, 50, 50
   love.graphics.rectangle "fill", 0, 0, bar_width, 20
   love.graphics.setColor 255, 0, 0
   love.graphics.rectangle "fill", 0, 0, bar_width * (state.infection_timer_max - state.infection_timer) / state.infection_timer_max, 20
+  love.graphics.pop!
 
-game_states.win.draw = ->
-  print "WIN"
+  love.graphics.setColor 0, 0, 0, gfx.fade_out_opacity * 255
+  love.graphics.rectangle "fill", 0, 0, width, height
+
+game_states.score.enter = ->
+  start_loop AUDIO.we_will_win_loop, 2
+
+game_states.score.update = (self, dt) ->
+  Timer.update dt
+
+game_states.score.keypressed = (self, key) ->
+  switch key
+    when "space"
+      Gamestate.switch game_states.game
+
+game_states.score.draw = ->
+  scale = love.window.getPixelScale!
+  love.graphics.scale scale
+
+  width = love.graphics.getWidth! / scale
+  height = love.graphics.getHeight! / scale
+
+  {
+    :all_count
+    :infected_count
+    :clear_count
+    :time
+    :used_count
+  } = state.win_conditions
+
+  percent = lume.round (clear_count / all_count) * 100
+  seconds = lume.round time
+
+  msg = "#{percent}% saved
+#{used_count} doctors used
+#{seconds} seconds"
+
+  love.graphics.setColor 255, 255, 255
+
+  love.graphics.setFont FONTS.main
+  love.graphics.printf msg, 0, 200, width, "center"
+
+  love.graphics.setFont FONTS.sub
+  love.graphics.printf "[press space to play again]", 0, height - 100, width, "center"
