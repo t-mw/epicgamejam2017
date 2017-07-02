@@ -1134,7 +1134,7 @@ game_states.score.draw = ->
 #{seconds} seconds"
 
   love.graphics.setFont FONTS.main
-  love.graphics.printf msg, 0, 200, width, "center"
+  love.graphics.printf msg, 0, 210, width, "center"
 
   love.graphics.setFont FONTS.sub
   love.graphics.printf "[press space to play again]", 0, height - 100, width, "center"
