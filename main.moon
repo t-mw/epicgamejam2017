@@ -68,7 +68,7 @@ love.load = ->
   GFX.houses_image = h
 
   --  paths
-  h = new_image_no_filter "graphics/path2.png"
+  h = new_image_no_filter "graphics/paths2.png"
   qs = {}
   qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions!)
   qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions!)
