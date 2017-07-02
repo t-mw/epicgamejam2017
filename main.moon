@@ -22,7 +22,7 @@ GFX = {}
 AUDIO =
   infection_complete: love.audio.newSource "music/InfectionComplete.wav", "static"
   heal: love.audio.newSource "music/Heal.wav", "static"
-  play_theme_loop: love.audio.newSource "music/playThemeLoopFull.wav"
+  play_theme_loop: love.audio.newSource "music/playthemeLoopFull.wav"
 
 JOB =
   block: "block"
