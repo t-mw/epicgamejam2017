@@ -881,13 +881,15 @@ game_states.game.enter = ->
 
   generate_map_routes 1, 1, state.map
 
-  MAX_COUNT = 20
+  village_count = lume.count state.map, (t) -> t.has_village
+  agent_count = village_count * 2
+
   count = 0
   handle = Timer.every 3, () ->
     add_agent state.agents
 
     count += 1
-    count < MAX_COUNT
+    count < agent_count
 
   start_loop AUDIO.play_theme_loop, 2, 1
 
