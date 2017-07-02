@@ -1,6 +1,7 @@
 inspect = require "lib.inspect"
-lume = require "lib.lume"
+Gamestate = require "lib.hump.gamestate"
 Timer = require "lib.hump.timer"
+lume = require "lib.lume"
 vector = require "lib.hump.vector"
 
 MAP_SIZE = 10
@@ -16,6 +17,8 @@ NUM_VILLAGE_TYPES = 3
 
 TILE_SCALE = 48 / 32
 
+GFX = {}
+
 AUDIO =
   infection_complete: love.audio.newSource "music/InfectionComplete.wav", "static"
   heal: love.audio.newSource "music/Heal.wav", "static"
@@ -28,21 +31,55 @@ JOB =
 
 local *
 
-state =
-  map_start_time: 0
-  map: {}
-  tiles: {}
-  gfx: {}
-  agents: {}
-  hover_agent_id: nil
-  dig_agent_id: nil
-  active_job: nil
-  infection_timer: INFECTION_TIMER_START
-  infection_timer_max: INFECTION_TIMER_START
+state = nil
+gfx = nil
 
-gfx =
-  glows: {}
-  infection_level: {}
+export game_states = {
+  game: {}
+  win: {}
+}
+
+love.load = ->
+  love.window.setMode 800, 600, highdpi: true
+
+  math.randomseed os.time!
+
+  -- load tile images
+  --  grass
+  GFX.grass = love.graphics.newImage("graphics/grass.png")
+
+  --  village houses
+  h = love.graphics.newImage("graphics/houses.png")
+  h\setFilter("nearest", "nearest")
+  qs = {}
+  qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions())
+  qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
+  qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
+  GFX.houses_qs = qs
+  GFX.houses_image = h
+
+  --  paths
+  GFX.paths_image = love.graphics.newImage("graphics/path2.png")
+  qs = {}
+  qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions())
+  qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
+  qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
+  qs[3] = love.graphics.newQuad(32*3, 0, 32, 32, h\getDimensions())
+  qs[4] = love.graphics.newQuad(32*4, 0, 32, 32, h\getDimensions())
+  GFX.paths_qs = qs
+
+  --  doctors
+  GFX.doctorleft = love.graphics.newImage("graphics/doctorleft.png")
+  GFX.doctorleft\setFilter("nearest", "nearest")
+  GFX.doctorback = love.graphics.newImage("graphics/doctorback.png")
+  GFX.doctorback\setFilter("nearest", "nearest")
+  GFX.doctorfront = love.graphics.newImage("graphics/doctorfront.png")
+  GFX.doctorfront\setFilter("nearest", "nearest")
+
+  GFX.glow = love.graphics.newImage("graphics/glow.png")
+
+  Gamestate.registerEvents!
+  Gamestate.switch game_states.game
 
 filled_array = (size, val = 0) ->
   result = {}
@@ -74,7 +111,7 @@ map_tile = (i) ->
   x, y = from_1d_to_2d_idx i, MAP_SIZE
   max_rate = math.max MAP_SIZE - x, MAP_SIZE - y
 
-  infection_rate = has_village and 80 or 0
+  infection_rate = has_village and lume.round(math.random! * max_rate) or 0
 
   {
     idx: i
@@ -97,6 +134,22 @@ set_infection_level = (t, v) ->
   g.timer = Timer.tween 2, g, {:v}, "out-expo"
 
   gfx.infection_level[t.idx] = g
+
+calculate_win_conditions = (agents, map) ->
+  village_tiles = lume.filter map, (t) -> t.has_village
+  infected_tiles = lume.filter village_tiles, (t) -> is_infection_critical(t.infection_level)
+  clear_tiles = lume.filter village_tiles, (t) -> t.infection_level == 0
+
+  {
+    all_count: #village_tiles
+    infected_count: #infected_tiles
+    clear_count: #clear_tiles
+    time: get_time!
+    used_count: #filter_inactive_agents(agents)
+  }
+
+are_win_conditions_complete = (conditions) ->
+  conditions.all_count == conditions.infected_count + conditions.clear_count
 
 generate_map = (size) ->
   result = {}
@@ -564,15 +617,15 @@ draw_agent = (a, x, y, time) ->
   x_dest, y_dest = from_1d_to_2d_idx destination, MAP_SIZE
 
   sprite, dx, scale_x = if x_source == x_dest and y_source == y_dest
-    state.gfx.doctorfront, 0, 1
+    GFX.doctorfront, 0, 1
   elseif x_source > x_dest
-    state.gfx.doctorleft, 0, 1
+    GFX.doctorleft, 0, 1
   elseif x_source < x_dest
-    state.gfx.doctorleft, TILE_SIZE, -1
+    GFX.doctorleft, TILE_SIZE, -1
   elseif y_source > y_dest
-    state.gfx.doctorback, 0, 1
+    GFX.doctorback, 0, 1
   else
-    state.gfx.doctorfront, 0, 1
+    GFX.doctorfront, 0, 1
 
   x = lume.round x - TILE_SIZE / 2 + dx
 
@@ -678,7 +731,7 @@ draw_tile_path = (tile, x, y, x0, y0) ->
   -- draw path depending on index
   if path_idx ~= -1
     love.graphics.setColor 100, 100, 100
-    love.graphics.draw(state.gfx.paths_image, state.gfx.paths_qs[path_idx], x0+x_off, y0+y_off, math.rad(angle), TILE_SCALE, TILE_SCALE)
+    love.graphics.draw(GFX.paths_image, GFX.paths_qs[path_idx], x0+x_off, y0+y_off, math.rad(angle), TILE_SCALE, TILE_SCALE)
 
   --love.graphics.setColor 200, 200, 0
   --love.graphics.line x1, y1, x1, y0 if tile.north
@@ -701,7 +754,7 @@ draw_tile = (idx, tile) ->
   --draw grass graphics
 
   img_scale = TILE_SIZE / IMAGE_SIZE
-  love.graphics.draw(state.gfx.grass, x0, y0, 0, TILE_SCALE, TILE_SCALE)
+  love.graphics.draw(GFX.grass, x0, y0, 0, TILE_SCALE, TILE_SCALE)
 
   draw_tile_path(tile, x, y, x0, y0)
 
@@ -716,55 +769,34 @@ draw_tile = (idx, tile) ->
     love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
 
     --draw village (one of the houses) graphics
-    love.graphics.draw(state.gfx.houses_image, state.gfx.houses_qs[tile.village_idx], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
+    love.graphics.draw(GFX.houses_image, GFX.houses_qs[tile.village_idx], x0, y0, math.rad(0), TILE_SCALE, TILE_SCALE)
 
   --love.graphics.setColor 0, 0, 0
   --love.graphics.rectangle "line", x0, y0, TILE_SIZE, TILE_SIZE
 
+game_states.game.enter = ->
 
-love.load = ->
-  love.window.setMode 800, 600, highdpi: true
+  state =
+    map_start_time: 0
+    map: {}
+    tiles: {}
+    gfx: {}
+    agents: {}
+    hover_agent_id: nil
+    dig_agent_id: nil
+    active_job: nil
+    infection_timer: INFECTION_TIMER_START
+    infection_timer_max: INFECTION_TIMER_START
+    win_conditions: nil
 
-  math.randomseed os.time!
+  gfx =
+    glows: {}
+    infection_level: {}
 
   state.map_start_time = love.timer.getTime!
   state.map = generate_map MAP_SIZE
 
   generate_map_routes 1, 1, state.map
-
-  -- load tile images
-  --  grass
-  state.gfx.grass = love.graphics.newImage("graphics/grass.png")
-
-  --  village houses
-  h = love.graphics.newImage("graphics/houses.png")
-  h\setFilter("nearest", "nearest")
-  qs = {}
-  qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions())
-  qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
-  qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
-  state.gfx.houses_qs = qs
-  state.gfx.houses_image = h
-
-  --  paths
-  state.gfx.paths_image = love.graphics.newImage("graphics/path2.png")
-  qs = {}
-  qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions())
-  qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
-  qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
-  qs[3] = love.graphics.newQuad(32*3, 0, 32, 32, h\getDimensions())
-  qs[4] = love.graphics.newQuad(32*4, 0, 32, 32, h\getDimensions())
-  state.gfx.paths_qs = qs
-
-  --  doctors
-  state.gfx.doctorleft = love.graphics.newImage("graphics/doctorleft.png")
-  state.gfx.doctorleft\setFilter("nearest", "nearest")
-  state.gfx.doctorback = love.graphics.newImage("graphics/doctorback.png")
-  state.gfx.doctorback\setFilter("nearest", "nearest")
-  state.gfx.doctorfront = love.graphics.newImage("graphics/doctorfront.png")
-  state.gfx.doctorfront\setFilter("nearest", "nearest")
-
-  state.gfx.glow = love.graphics.newImage("graphics/glow.png")
 
   MAX_COUNT = 20
   count = 0
@@ -786,7 +818,7 @@ love.load = ->
         volume = t / 2
         \setVolume volume * volume
 
-love.update = (dt) ->
+game_states.game.update = (self, dt) ->
   time = get_time!
 
   agents = filter_active_agents state.agents
@@ -828,9 +860,17 @@ love.update = (dt) ->
         if infection_level2 != infection_level1
           set_infection_level t, infection_level2
 
+  if not state.win_conditions
+    win_conditions = calculate_win_conditions state.agents, state.map
+
+    if are_win_conditions_complete win_conditions
+      state.win_conditions = win_conditions
+
+      Gamestate.switch game_states.win
+
   Timer.update(dt)
 
-love.keypressed = (key) ->
+game_states.game.keypressed = (self, key) ->
   agents = filter_active_agents state.agents
 
   hover_agent = find_agent state.select_agent_id, agents
@@ -843,7 +883,7 @@ love.keypressed = (key) ->
     when "3"
       state.active_job = "rotate"
 
-love.mousepressed = (x, y, button) ->
+game_states.game.mousepressed = (self, x, y, button) ->
   agents = filter_active_agents state.agents
 
   if button != 1
@@ -861,7 +901,7 @@ love.mousepressed = (x, y, button) ->
       else
         select_agent.job = active_job if not select_agent.job
 
-love.mousereleased = (x, y, button) ->
+game_states.game.mousereleased = (self, x, y, button) ->
   if button != 1
     return
 
@@ -882,7 +922,7 @@ love.mousereleased = (x, y, button) ->
 
   state.dig_agent_id = nil
 
-love.draw = ->
+game_states.game.draw = ->
   time = get_time!
 
   mouse_x, mouse_y = love.mouse.getPosition!
@@ -996,7 +1036,7 @@ love.draw = ->
       e = 1 - e * e * e * e * e
 
       love.graphics.setColor 255, 255, 255, (1 - e) * 255
-      love.graphics.draw(state.gfx.glow, x, y, e, TILE_SCALE, TILE_SCALE, 0.5 * TILE_SIZE / TILE_SCALE, 0.5 * TILE_SIZE / TILE_SCALE)
+      love.graphics.draw(GFX.glow, x, y, e, TILE_SCALE, TILE_SCALE, 0.5 * TILE_SIZE / TILE_SCALE, 0.5 * TILE_SIZE / TILE_SCALE)
 
   bar_width = 500
   love.graphics.translate 0.5 * (width - bar_width), height - 40
@@ -1004,3 +1044,6 @@ love.draw = ->
   love.graphics.rectangle "fill", 0, 0, bar_width, 20
   love.graphics.setColor 255, 0, 0
   love.graphics.rectangle "fill", 0, 0, bar_width * (state.infection_timer_max - state.infection_timer) / state.infection_timer_max, 20
+
+game_states.win.draw = ->
+  print "WIN"
