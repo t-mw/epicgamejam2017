@@ -398,6 +398,10 @@ calculate_new_agent_destination = (a, map, time) ->
       neighbors = get_map_tile_neighbor_indices destination, map
 
       if #neighbors > 0
+        -- avoid critical infections
+        neighbors = lume.reject neighbors, (n) ->
+            is_infection_critical map[n].infection_level
+
         -- avoid backtracking
         lume.remove neighbors, source if #neighbors > 1
         new_destination = lume.randomchoice(neighbors) or destination
@@ -438,13 +442,11 @@ update_agent_destination = (a, map, blockers, time) ->
     return
 
   new_destination_tile = map[new_destination]
-  is_critical = new_destination_tile and
-    is_infection_critical new_destination_tile.infection_level
 
   if new_destination == a.destination and reached_old
     a.is_stationary = true
 
-  elseif new_destination != a.destination and not is_critical
+  elseif new_destination != a.destination
     a.source = a.destination
     a.destination = new_destination
     a.is_stationary = false
