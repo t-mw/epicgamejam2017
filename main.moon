@@ -875,7 +875,7 @@ love.draw = ->
     duration = math.min((time - a.created_at) / DURATION, 1)
 
     color = if state.hover_agent_id == a.id
-      {255 * duration, 200 * duration, 200 * duration}
+      {180 * duration, 255 * duration, 180 * duration}
     else
       {255 * duration, 255 * duration, 255 * duration}
 
