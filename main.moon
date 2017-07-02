@@ -42,6 +42,7 @@ state =
 
 gfx =
   glows: {}
+  infection_level: {}
 
 filled_array = (size, val = 0) ->
   result = {}
@@ -62,8 +63,9 @@ is_infection_critical = (level) ->
   level == 100
 
 map_tile = (i) ->
-  --village/houses
+  -- village/houses
   has_village = math.random! < 0.1
+
   --  type of village
   village_idx = -1
   if has_village
@@ -72,7 +74,7 @@ map_tile = (i) ->
   x, y = from_1d_to_2d_idx i, MAP_SIZE
   max_rate = math.max MAP_SIZE - x, MAP_SIZE - y
 
-  infection_rate = has_village and lume.round(math.random! * max_rate) or 0
+  infection_rate = has_village and 80 or 0
 
   {
     idx: i
@@ -86,11 +88,25 @@ map_tile = (i) ->
     :infection_rate
   }
 
+set_infection_level = (t, v) ->
+  t.infection_level = v
+
+  g = gfx.infection_level[t.idx] or {:v, timer: nil}
+
+  Timer.cancel g.timer if g.timer
+  g.timer = Timer.tween 2, g, {:v}, "out-expo"
+
+  gfx.infection_level[t.idx] = g
+
 generate_map = (size) ->
   result = {}
 
   for i = 1, size * size
-    table.insert result, map_tile(i)
+    t = map_tile(i)
+    table.insert result, t
+
+    -- initialise gfx
+    set_infection_level t, t.infection_level
 
   result
 
@@ -485,7 +501,7 @@ apply_healing = (a, pre_move, map) ->
       AUDIO.heal\play!
       table.insert gfx.glows, tile_idx: post_tile.idx, since: get_time!
 
-      post_tile.infection_level = math.max infection_level - 10, 0
+      set_infection_level post_tile, math.max(infection_level - 10, 0)
 
 apply_digging = (a, pre_move, map) ->
   if not a.job == "dig"
@@ -688,8 +704,8 @@ draw_tile = (idx, tile) ->
   draw_tile_path(tile, x, y, x0, y0)
 
   if tile.has_village
-    l = lume.round tile.infection_level
-    frac = tile.infection_level / 100
+    l = gfx.infection_level[idx].v
+    frac = l / 100
 
     love.graphics.setColor 100, 100, 100
     --love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
@@ -808,7 +824,7 @@ love.update = (dt) ->
         infection_level2 = math.min infection_level1 + t.infection_rate, 100
 
         if infection_level2 != infection_level1
-          Timer.tween 2, t, {infection_level: infection_level2}, "out-expo"
+          set_infection_level t, infection_level2
 
   Timer.update(dt)
 
