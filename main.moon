@@ -204,8 +204,10 @@ add_agent = (agents) ->
     inactive_since: 0
     source: 0
     destination: 0
+    is_stationary: false,
     position: vector(0, 0),
     job: nil
+    dig_tile_indices: {}
     blocking_time: BLOCKING_TIME
     blocked: false
   }
@@ -229,6 +231,10 @@ world_pos_to_tile_pos = (v) ->
   v = v / TILE_SIZE
   lume.round(v.x), lume.round(v.y)
 
+world_pos_to_tile_idx = (v) ->
+  x, y = world_pos_to_tile_pos v
+  from_2d_to_1d_idx x, y, MAP_SIZE
+
 agent_distance2 = (a, b) ->
   (a.position - b.position)\len2!
 
@@ -246,12 +252,15 @@ update_agent_position = (a, dt) ->
     a.position = vector(x, y)
 
   else
-    SPEED = 40
+    speed = a.job == "dig" and 80 or 40
+
+    -- affects the pause between moves
+    NORMALIZE_TO = 35
 
     diff = dest_pos - position
-    diff\trimInplace SPEED
+    diff = (diff\trimmed NORMALIZE_TO) / NORMALIZE_TO
 
-    a.position = position + diff * dt
+    a.position = position + diff * speed * dt
 
 get_map_tile_neighbor_dir = (dir, idx, map) ->
   tile = map[idx]
@@ -282,6 +291,54 @@ get_map_tile_neighbor_dir = (dir, idx, map) ->
 
   n_idx
 
+are_connected_along = (dir, idx1, idx2, map) ->
+  t1 = map[idx1]
+  t2 = map[idx2]
+
+  switch dir
+    when "east"
+      are_neighbours_along(dir, idx1, idx2, map) and t1.east and t2.west
+    when "west"
+      are_neighbours_along(dir, idx1, idx2, map) and t1.west and t2.east
+    when "south"
+      are_neighbours_along(dir, idx1, idx2, map) and t1.south and t2.north
+    when "north"
+      are_neighbours_along(dir, idx1, idx2, map) and t1.north and t2.south
+
+are_neighbours_along = (dir, idx1, idx2, map) ->
+  t1 = map[idx1]
+  t2 = map[idx2]
+
+  x1, y1 = from_1d_to_2d_idx idx1, MAP_SIZE
+  x2, y2 = from_1d_to_2d_idx idx2, MAP_SIZE
+
+  switch dir
+    when "east"
+      x1 + 1 == x2 and y1 == y2
+    when "west"
+      x1 - 1 == x2 and y1 == y2
+    when "south"
+      x1 == x2 and y1 + 1 == y2
+    when "north"
+      x1 == x2 and y1 - 1 == y2
+
+connect_tiles = (idx1, idx2, map) ->
+  t1 = map[idx1]
+  t2 = map[idx2]
+
+  if are_neighbours_along "east", idx1, idx2, map
+    t1.east = true
+    t2.west = true
+  elseif are_neighbours_along "west", idx1, idx2, map
+    t1.west = true
+    t2.east = true
+  elseif are_neighbours_along "south", idx1, idx2, map
+    t1.south = true
+    t2.north = true
+  elseif are_neighbours_along "north", idx1, idx2, map
+    t1.north = true
+    t2.south = true
+
 get_map_tile_neighbor_indices = (idx, map) ->
   tile = map[idx]
   x0, y0 = from_1d_to_2d_idx idx, MAP_SIZE
@@ -311,19 +368,22 @@ get_map_tile_neighbor_indices = (idx, map) ->
   result
 
 calculate_new_agent_destination = (a, map, time) ->
-  {:source, :destination} = a
+  {:source, :destination, :job, :dig_tile_indices} = a
 
   new_destination = destination
 
   if destination == 0
     new_destination = 1
   else
-    neighbors = get_map_tile_neighbor_indices destination, map
+    if job == "dig"
+      new_destination = table.remove(dig_tile_indices, 1) or destination
+    else
+      neighbors = get_map_tile_neighbor_indices destination, map
 
-    if #neighbors > 0
-      -- avoid backtracking
-      lume.remove neighbors, source if #neighbors > 1
-      new_destination = lume.randomchoice(neighbors) or destination
+      if #neighbors > 0
+        -- avoid backtracking
+        lume.remove neighbors, source if #neighbors > 1
+        new_destination = lume.randomchoice(neighbors) or destination
 
   new_destination
 
@@ -338,14 +398,14 @@ calculate_agent_destination = (a, map, time) ->
   DIST_THRESHOLD = 5
 
   if destination == 0 or dest_dist2 < DIST_THRESHOLD
-    calculate_new_agent_destination a, map, time
+    calculate_new_agent_destination(a, map, time), true
   else
-    a.destination
+    a.destination, false
 
 update_agent_destination = (a, map, blockers, time) ->
   return if a.job == "block"
 
-  new_destination = calculate_agent_destination a, map, time
+  new_destination, reached_old = calculate_agent_destination a, map, time
 
   if not a.blocked and
     lume.match blockers, (b) -> agent_distance2(a, b) < AGENT_BLOCK_RADIUS2
@@ -364,56 +424,44 @@ update_agent_destination = (a, map, blockers, time) ->
   is_critical = new_destination_tile and
     is_infection_critical new_destination_tile.infection_level
 
-  if new_destination != a.destination and not is_critical
+  if new_destination == a.destination and reached_old
+    a.is_stationary = true
+
+  elseif new_destination != a.destination and not is_critical
     a.source = a.destination
     a.destination = new_destination
+    a.is_stationary = false
 
-apply_dig_agent = (agent, target_x, target_y, map) ->
+calculate_dig_tile_indices = (source_x, source_y, target_x, target_y, map) ->
+  result = {}
 
-  source_tile = (() ->
-    x, y = world_pos_to_tile_pos agent.position
-    idx = from_2d_to_1d_idx x, y, MAP_SIZE
-    map[idx]
-  )()
+  diff = vector(target_x, target_y) - vector(source_x, source_y)
 
-  target_tile = (() ->
-    x, y = world_pos_to_tile_pos vector(target_x, target_y)
-    idx = from_2d_to_1d_idx x, y, MAP_SIZE
-    map[idx]
-  )()
+  if diff.x != 0 or diff.y != 0
+    idx = from_2d_to_1d_idx source_x, source_y, MAP_SIZE
 
-  applied = false
+    dir, max = if diff.x > 0
+      "east", math.abs diff.x
+    elseif diff.x < 0
+      "west", math.abs diff.x
+    elseif diff.y > 0
+      "south", math.abs diff.y
+    elseif diff.y < 0
+      "north", math.abs diff.y
 
-  if source_tile and target_tile and source_tile.idx != target_tile.idx
-    source_idx = source_tile.idx
-    target_idx = target_tile.idx
+    n = 0
 
-    idx_e = get_map_tile_neighbor_dir "east", source_idx, map
-    idx_w = get_map_tile_neighbor_dir "west", source_idx, map
-    idx_n = get_map_tile_neighbor_dir "north", source_idx, map
-    idx_s = get_map_tile_neighbor_dir "south", source_idx, map
+    while n < max
+      n += 1
+      idx_n = get_map_tile_neighbor_dir dir, idx, map
 
-    if target_idx == idx_e and (not source_tile.east or not target_tile.west)
-      source_tile.east = true
-      target_tile.west = true
-      applied = true
+      if not idx_n or are_connected_along dir, idx, idx_n, map
+        break
+      else
+        table.insert result, idx_n
+        idx = idx_n
 
-    if target_idx == idx_w and (not source_tile.west or not target_tile.east)
-      source_tile.west = true
-      target_tile.east = true
-      applied = true
-
-    if target_idx == idx_n and (not source_tile.north or not target_tile.south)
-      source_tile.north = true
-      target_tile.south = true
-      applied = true
-
-    if target_idx == idx_s and (not source_tile.south or not target_tile.north)
-      source_tile.south = true
-      target_tile.north = true
-      applied = true
-
-  applied
+  result
 
 apply_healing = (a, pre_move, map) ->
 
@@ -437,6 +485,19 @@ apply_healing = (a, pre_move, map) ->
       table.insert gfx.glows, tile_idx: post_tile.idx, since: get_time!
 
       post_tile.infection_level = math.max infection_level - 10, 0
+
+apply_digging = (a, pre_move, map) ->
+  if not a.job == "dig"
+    return
+
+  pre_tile_idx = world_pos_to_tile_idx pre_move
+  post_tile_idx = world_pos_to_tile_idx a.position
+
+  pre_tile = map[pre_tile_idx]
+  post_tile = map[post_tile_idx]
+
+  if post_tile and (not pre_tile or pre_tile.idx != post_tile.idx)
+    connect_tiles pre_tile_idx, post_tile_idx, map
 
 find_agent_at = (world_x, world_y, agents) ->
   w = vector world_x, world_y
@@ -705,6 +766,10 @@ love.update = (dt) ->
     update_agent_destination a, state.map, blockers, time
 
     apply_healing a, pre_move, state.map
+    apply_digging a, pre_move, state.map
+
+    if a.job == "dig" and a.is_stationary
+      deactivate_agent a, time
 
   x, y =  love.mouse.getPosition!
   x, y = project_to_world x, y
@@ -772,13 +837,21 @@ love.mousereleased = (x, y, button) ->
   if dig_agent = find_agent state.dig_agent_id, agents
     x, y = project_to_world x, y
 
-    if apply_dig_agent dig_agent, x, y, map
-      deactivate_agent dig_agent, get_time!
+    source_x, source_y = world_pos_to_tile_pos dig_agent.position
+    target_x, target_y = world_pos_to_tile_pos vector(x, y)
+
+    dig_tile_indices = calculate_dig_tile_indices source_x, source_y, target_x, target_y, state.map
+
+    if #dig_tile_indices > 0
+      dig_agent.dig_tile_indices = dig_tile_indices
+      dig_agent.job = "dig"
 
   state.dig_agent_id = nil
 
 love.draw = ->
   time = get_time!
+
+  mouse_x, mouse_y = love.mouse.getPosition!
 
   agents = filter_active_agents state.agents
 
@@ -809,13 +882,25 @@ love.draw = ->
     love.graphics.setColor color
     draw_agent a, x, y
 
-    if a.id == state.dig_agent_id
-      x1, y1 = love.mouse.getPosition!
 
-      x1 /= scale
-      y1 /= scale
+  if dig_agent = find_agent state.dig_agent_id, agents
+    mouse_world_x, mouse_world_y = project_to_world mouse_x, mouse_y
 
-      love.graphics.line x, y, x1, y1
+    source_x, source_y = world_pos_to_tile_pos dig_agent.position
+    target_x, target_y = world_pos_to_tile_pos vector(mouse_world_x, mouse_world_y)
+
+    dig_tile_indices = calculate_dig_tile_indices source_x, source_y, target_x, target_y, state.map
+
+    if #dig_tile_indices > 0
+      {x: x1, y: y1} = dig_agent.position
+      x1, y1 = project_to_screen x1, y1
+
+      last_idx = lume.last dig_tile_indices
+      x2, y2 = from_1d_to_2d_idx last_idx, MAP_SIZE
+      v = tile_pos_to_world_pos x2, y2
+      x2, y2 = project_to_screen v.x, v.y
+
+      love.graphics.line x1, y1, x2, y2
 
   inactive_agents = filter_inactive_agents state.agents
 
