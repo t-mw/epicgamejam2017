@@ -811,7 +811,7 @@ draw_tile = (idx, tile) ->
     love.graphics.setColor 100, 100, 100
     --love.graphics.rectangle "fill", x0, y0, TILE_SIZE, TILE_SIZE
 
-    if frac > 0.1
+    if frac >= 0.5 / INFECTION_CRITICAL
       love.graphics.setColor 255, mix(96, 0, frac), mix(0, 125, frac), mix(30, 150, frac)
       --love.graphics.rectangle "fill", x0, y0 + TILE_SIZE * (1 - frac), TILE_SIZE, TILE_SIZE * frac
       mid = TILE_SIZE * 0.5
