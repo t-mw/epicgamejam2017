@@ -48,6 +48,7 @@ export game_states = {
 
 love.load = ->
   love.window.setMode 800, 600, highdpi: true
+  love.window.setTitle "plaguemania"
 
   math.randomseed os.time!
 
