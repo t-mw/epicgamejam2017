@@ -1164,13 +1164,12 @@ game_states.game.draw = ->
     love.graphics.setColor 255, 255, 255
     love.graphics.rectangle "line", 90, 90, width - 2 * 90, height - 2 * 90
 
-    msg = "heal the infected by leading the doctors to the villages in time
+    msg = "Heal the infected by leading the doctors to the villages in time. Win by saving every village!
 
-press 1 to activate the blocking mode to block a path/ cost: the doctor you used
-press 2 to activate pathcreator mode to create missing paths/ cost: the doctor you used
+- Click and drag from a doctor to create a missing path (cost: the doctor you used).
+- Click on a doctor to freeze them and block their path (cost: the doctor you used).
 
-you have a limited amount of doctors for your mission!
-choose your blocks wisely, they will stay that way!"
+You have a limited amount of doctors for your mission! choose your blockers wisely, they will stay that way!"
 
     love.graphics.setFont FONTS.sub
     love.graphics.printf msg, 100, 100, width - 2 * 100
