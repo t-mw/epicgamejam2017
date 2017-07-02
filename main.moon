@@ -1095,6 +1095,7 @@ game_states.game.draw = ->
 
 game_states.score.enter = ->
   love.audio.stop!
+  Timer.clear!
   start_loop AUDIO.we_will_win_loop, 1, 1
 
 game_states.score.update = (self, dt) ->
