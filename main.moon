@@ -595,7 +595,7 @@ apply_healing = (a, pre_move, map) ->
       AUDIO.heal\play!
       table.insert gfx.glows, tile_idx: post_tile.idx, since: get_time!
 
-      set_infection_level post_tile, math.max(infection_level - 10, 0)
+      set_infection_level post_tile, math.max(infection_level - 30, 0)
 
 apply_digging = (a, pre_move, map) ->
   if not a.job == "dig"
