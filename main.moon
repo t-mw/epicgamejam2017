@@ -139,7 +139,7 @@ is_infection_critical = (level) ->
 
 map_tile = (i) ->
   -- village/houses
-  has_village = math.random! < 0.1
+  has_village = math.random! < 0.05
 
   --  type of village
   village_idx = -1
@@ -293,12 +293,12 @@ generate_map_routes = (start_x, start_y, map) ->
     clear_map map
 
     visited = {}
-    generate_map_route start_idx, 20, 2, visited, map
+    generate_map_route start_idx, 10, 2, visited, map
 
     -- avoid lume.count treating visited as array
     visited[1] = nil
 
-    if lume.count(visited) + 1 > 40
+    if lume.count(visited) + 1 > 30
       break
 
 add_agent = (agents) ->
