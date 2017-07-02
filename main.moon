@@ -46,40 +46,41 @@ love.load = ->
 
   -- load tile images
   --  grass
-  GFX.grass = love.graphics.newImage("graphics/grass.png")
+  GFX.grass = new_image_no_filter "graphics/grass.png"
 
   --  village houses
-  h = love.graphics.newImage("graphics/houses.png")
-  h\setFilter("nearest", "nearest")
+  h = new_image_no_filter "graphics/houses.png"
   qs = {}
-  qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions())
-  qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
-  qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
+  qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions!)
+  qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions!)
+  qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions!)
   GFX.houses_qs = qs
   GFX.houses_image = h
 
   --  paths
-  GFX.paths_image = love.graphics.newImage("graphics/path2.png")
+  h = new_image_no_filter "graphics/path2.png"
   qs = {}
-  qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions())
-  qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions())
-  qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions())
-  qs[3] = love.graphics.newQuad(32*3, 0, 32, 32, h\getDimensions())
-  qs[4] = love.graphics.newQuad(32*4, 0, 32, 32, h\getDimensions())
+  qs[0] = love.graphics.newQuad(32*0, 0, 32, 32, h\getDimensions!)
+  qs[1] = love.graphics.newQuad(32*1, 0, 32, 32, h\getDimensions!)
+  qs[2] = love.graphics.newQuad(32*2, 0, 32, 32, h\getDimensions!)
+  qs[3] = love.graphics.newQuad(32*3, 0, 32, 32, h\getDimensions!)
+  qs[4] = love.graphics.newQuad(32*4, 0, 32, 32, h\getDimensions!)
   GFX.paths_qs = qs
+  GFX.paths_image = h
 
   --  doctors
-  GFX.doctorleft = love.graphics.newImage("graphics/doctorleft.png")
-  GFX.doctorleft\setFilter("nearest", "nearest")
-  GFX.doctorback = love.graphics.newImage("graphics/doctorback.png")
-  GFX.doctorback\setFilter("nearest", "nearest")
-  GFX.doctorfront = love.graphics.newImage("graphics/doctorfront.png")
-  GFX.doctorfront\setFilter("nearest", "nearest")
+  GFX.doctorleft = new_image_no_filter "graphics/doctorleft.png"
+  GFX.doctorback = new_image_no_filter "graphics/doctorback.png"
+  GFX.doctorfront = new_image_no_filter "graphics/doctorfront.png"
 
-  GFX.glow = love.graphics.newImage("graphics/glow.png")
+  GFX.glow = new_image_no_filter "graphics/glow.png"
 
   Gamestate.registerEvents!
   Gamestate.switch game_states.game
+
+new_image_no_filter = (path) ->
+  with love.graphics.newImage path
+    \setFilter "nearest", "nearest"
 
 filled_array = (size, val = 0) ->
   result = {}
