@@ -825,6 +825,9 @@ game_states.menu.enter = ->
 
   credits = table.concat lume.shuffle(credits), "\n"
 
+game_states.menu.update = (self, dt) ->
+  Timer.update dt
+
 game_states.menu.keypressed = (self, key) ->
   switch key
     when "space"
